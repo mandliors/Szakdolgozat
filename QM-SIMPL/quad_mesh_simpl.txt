@@ -1,0 +1,61 @@
+Steps:
+0. trimesh -> quad mesh
+1. initial global smoothing
+2. iterative update until user criterion:
+	a. for n iterations:
+		i.  local optimization until none available
+		ii. local coarsening operation
+	b. local smoothing
+3. global smoothing
+
+
+Local operations:
+- optimizing operations:
+	- edge rotate
+	- vertex rotate
+- coarsening operations:
+	- diagonal collapse
+	- edge collapse
+- cleaning operations:
+	- doublet removal
+	- singlet removal
+
+
+Operation prioritization:
+- collapses:
+	edge collapses and diagonal collapses are handled together:
+	collapse the shortest element of the mesh
+	length of the diagonals are divided by sqrt(2) before any comparison
+- optimizations:
+	- vertex rotation:
+	  calculate profitability: sum(edge lengths) - sum(diagonal lengths)
+	  choose vertex with the highest profitability
+	- edge rotation:
+	  calculate profitability sum(|new e/d| - |old e/d|) for all new elements
+	  the 3 new elements: the edge and two diagonals
+	  choose rotation with the highest profitability
+- cleanings:
+	- doublet removal:
+	  they are not removed explicitly (only with a diagonal collapse if needed)
+	- singlet removal:
+	  removed as soon as they appear (they are always degenerate, unlike doublets)
+
+
+Tangent space smoothing
+increase homeometry by moving vertices (they stay on the surface of the original mesh)
+if e cannot be made homeometric -> good candidate for the next collapse/rotate
+local: only affect a small area around the regions affected by the prev local operations
+global: performed until convergence
+schedule updated vertices for smoothing, if moved too much (>eps), schedule its neighbors too
+
+
+Implementation details
+- prioritizing operations:
+	heap of potential operations sorted by prerecorded priorities
+	perform a local operation -> update only the opers of neighbors (only they are affected)
+- tangent space smoothing:
+	...
+	
+
+any operation creating a quad edge connecting a vertex to itself must be prevented
+a singlet must be removed immediately after creation
