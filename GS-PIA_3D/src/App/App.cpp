@@ -12,6 +12,7 @@
 
 #include <array>
 #include <ranges>
+#include <iostream>
 
 namespace fs = std::filesystem;
 
