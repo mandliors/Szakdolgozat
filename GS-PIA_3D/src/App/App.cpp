@@ -373,7 +373,20 @@ auto App::Reset() -> void
 
 	CalculateLimitPoint();
 }
+auto App::GetAlpha() const -> float
+{
+	if (!m_iteratedMesh)
+		return 0.0f;
 
+	const auto &mesh = m_iteratedMesh->TopologyMesh();
+	auto vh = mesh.vertex_handle(m_steps);
+	auto n = mesh.valence(vh);
+
+	if (mesh.is_boundary(vh))
+		return 4.0f / 6.0f;
+	else
+		return n * n / static_cast<float>(n * (n + 5));
+}
 auto App::CalculateLimitPoint() const -> void
 {
 	if (!m_iteratedMesh)
@@ -398,7 +411,7 @@ auto App::CalculateLimitPoint() const -> void
 	else
 	{
 		auto n = mesh.valence(vh);
-		auto alpha = n * n / static_cast<float>(n * (n + 5));
+		auto alpha = GetAlpha();
 
 		auto faceMult = 1.0f / (n * (n + 5));
 		PolyMesh::Point facePtSum{0.0f, 0.0f, 0.0f};
@@ -441,7 +454,7 @@ auto App::StepVertex(bool updateMesh) -> void
 	if (!m_iteratedMesh)
 		return;
 
-	static constexpr auto alpha = 1.0f;
+	const auto alpha = GetAlpha();
 
 	auto &originalMesh = m_originalMesh->TopologyMesh();
 	auto &iteratedMesh = m_iteratedMesh->TopologyMesh();
@@ -453,7 +466,7 @@ auto App::StepVertex(bool updateMesh) -> void
 	const auto &v = iteratedMesh.point(ivh);
 	const auto &l = PolyMesh::Point{m_limitPt->Vtx()[0].x, m_limitPt->Vtx()[0].y, m_limitPt->Vtx()[0].z};
 
-	const auto vUpdated = v + alpha * (v0 - l);
+	const auto vUpdated = v + (1.0f / alpha) * (v0 - l);
 
 	auto &iteratedCpsMesh = m_iteratedMesh->TopologyMesh();
 	auto &iteratedSfcMesh = m_iteratedMesh->TopologyMesh();

@@ -300,6 +300,41 @@ auto App::Reset() -> void
 	m_originalCurve->Vtx() = Subdivide(m_initialCps->Vtx());
 	m_iteratedCurve->Vtx() = Subdivide(m_iteratedCps->Vtx());
 }
+auto App::GetAlpha() const -> float
+{
+	const auto m = m_steps;
+	const auto n = m_initialCps->Vtx().size();
+
+	if (m_closed)
+		return 4.0f / 6.0f;
+	else
+	{
+		if (n == 3)
+			return (m == 0 || m == 2) ? 1.0f : 6.0f / 16.0f;
+		else if (n == 4)
+			return (m == 0 || m == 3) ? 1.0f : 12.0f / 27.0f;
+		else if (n == 5)
+		{
+			if (m == 0 || m == 4)
+				return 1.0f;
+			else if (m == 1 || m == 3)
+				return 61.0f / 108.0f;
+			else // m = 2
+				return 2.0f / 4.0f;
+		}
+		else
+		{
+			if (m == 0 || m == n - 1)
+				return 1.0f;
+			else if (m == 1 || m == n - 2)
+				return 183.0f / 324.0f;
+			else if (m == 2 || m == n - 3)
+				return 7.0f / 12.0f;
+			else
+				return 4.0f / 6.0f;
+		}
+	}
+}
 auto App::CalculateLimitPoint() const -> void
 {
 	const auto &P = m_iteratedCps->Vtx();
@@ -371,12 +406,11 @@ auto App::StepVertex(bool updateCurve) -> void
 	if (m_initialCps->Vtx().empty())
 		return;
 
-	static constexpr auto alpha = 1.0f;
-
+	const auto alpha = GetAlpha();
 	const auto &v = m_initialCps->Vtx()[m_steps];
 	const auto &l = m_limitPt->Vtx()[0];
 
-	m_iteratedCps->Vtx()[m_steps] += alpha * (v - l);
+	m_iteratedCps->Vtx()[m_steps] += (1.0f / alpha) * (v - l);
 	if (updateCurve)
 		m_iteratedCurve->Vtx() = Subdivide(m_iteratedCps->Vtx());
 

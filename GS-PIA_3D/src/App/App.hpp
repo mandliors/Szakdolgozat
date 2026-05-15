@@ -42,6 +42,7 @@ private:
 	auto LoadModels() -> void;
 
 	auto Reset() -> void;
+	auto GetAlpha() const -> float;
 	auto CalculateLimitPoint() const -> void;
 	auto StepVertex(bool updateMesh = true) -> void;
 	auto Iterate() -> void;
