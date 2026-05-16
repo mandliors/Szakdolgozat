@@ -487,24 +487,20 @@ auto App::Subdivide(const std::vector<glm::vec2> &curvePts) -> std::vector<glm::
 			newPts.push_back(pts[0]);
 			newPts.push_back(0.5f * pts[0] + 0.5f * pts[1]);
 			newPts.push_back(0.75f * pts[1] + 0.25f * pts[2]);
+			newPts.push_back(3.0f / 16.0f * pts[1] + 11.0f / 16.0f * pts[2] + 2.0f / 16.0f * pts[3]);
+			newPts.push_back(0.5f * pts[2] + 0.5f * pts[3]);
 
-			for (size_t i = 2; i <= n - 3; i++)
+			for (size_t i = 3; i < n - 3; i++)
 			{
 				const auto &posA = pts[i - 1];
 				const auto &posB = pts[i];
 				const auto &posC = pts[i + 1];
 
-				if (i == 2)
-					newPts.push_back(3.0f / 16.0f * posA + 11.0f / 16.0f * posB + 2.0f / 16.0f * posC);
-				else if (i == n - 3)
-					newPts.push_back(2.0f / 16.0f * posA + 11.0f / 16.0f * posB + 3.0f / 16.0f * posC);
-				else
-					newPts.push_back(2.0f / 16.0f * posA + 12.0f / 16.0f * posB + 2.0f / 16.0f * posC);
-
-				if (i < n - 3)
-					newPts.push_back((posB + posC) / 2.0f);
+				newPts.push_back(2.0f / 16.0f * posA + 12.0f / 16.0f * posB + 2.0f / 16.0f * posC);
+				newPts.push_back((posB + posC) / 2.0f);
 			}
 
+			newPts.push_back(2.0f / 16.0f * pts[n - 4] + 11.0f / 16.0f * pts[n - 3] + 3.0f / 16.0f * pts[n - 2]);
 			newPts.push_back(0.25f * pts[n - 3] + 0.75f * pts[n - 2]);
 			newPts.push_back(0.5f * pts[n - 2] + 0.5f * pts[n - 1]);
 			newPts.push_back(pts[n - 1]);
