@@ -36,14 +36,11 @@ auto App::OnInit() -> void
 			{GL_FRAGMENT_SHADER, "assets/shaders/2dbasic.fs"},
 		});
 
-	m_initialCps = std::make_unique<Renderable2D>(*m_shader, GL_POINTS, s_initialColor);
-	m_iteratedCps = std::make_unique<Renderable2D>(*m_shader, GL_POINTS, s_iteratedColor);
+	m_originalCurve = std::make_unique<ApproximatingCurve>(*m_shader, s_initialColor);
+	m_iteratedCurve = std::make_unique<ApproximatingCurve>(*m_shader, s_iteratedColor);
 	m_limitPt = std::make_unique<Renderable2D>(*m_shader, GL_POINTS, s_limitPtColor);
 
-	m_originalCurve = std::make_unique<Renderable2D>(*m_shader, GL_LINE_LOOP, s_initialColor);
-	m_iteratedCurve = std::make_unique<Renderable2D>(*m_shader, GL_LINE_LOOP, s_iteratedColor);
-
-	m_initialCps->Vtx() = std::vector<glm::vec2>{
+	m_originalCurve->Cps() = std::vector<glm::vec2>{
 		glm::vec2{-0.45f, -0.3f},
 		glm::vec2{-0.15f, 0.35f},
 		glm::vec2{0.2f, 0.45f},
@@ -83,12 +80,6 @@ auto App::OnRender() -> void
 	m_iteratedCurve->Draw();
 
 	glDisable(GL_DEPTH_TEST);
-	glPointSize(20.0f);
-	m_initialCps->UpdateGPU();
-	m_initialCps->Draw();
-	glPointSize(15.0f);
-	m_iteratedCps->UpdateGPU();
-	m_iteratedCps->Draw();
 	glPointSize(10.0f);
 	m_limitPt->UpdateGPU();
 	m_limitPt->Draw();
@@ -117,7 +108,7 @@ auto App::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
 {
 	if (button == GLFW_MOUSE_BUTTON_LEFT)
 	{
-		for (auto &p : m_initialCps->Vtx())
+		for (auto &p : m_originalCurve->Cps())
 		{
 			auto mousePos = ScreenToNDC(x, y);
 			if (glm::length(mousePos - p) < 0.05f)
@@ -131,8 +122,8 @@ auto App::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
 	{
 		const auto p = ScreenToNDC(x, y);
 
-		m_initialCps->Vtx().push_back(p);
-		m_iteratedCps->Vtx().push_back(p);
+		m_originalCurve->Cps().push_back(p);
+		m_iteratedCurve->Cps().push_back(p);
 		Reset();
 	}
 }
@@ -228,13 +219,13 @@ auto App::OnImGuiRender() -> void
 		{
 			if (m_closed)
 			{
-				m_originalCurve->SetType(GL_LINE_LOOP);
-				m_iteratedCurve->SetType(GL_LINE_LOOP);
+				m_originalCurve->SetClosed(true);
+				m_iteratedCurve->SetClosed(true);
 			}
 			else
 			{
-				m_originalCurve->SetType(GL_LINE_STRIP);
-				m_iteratedCurve->SetType(GL_LINE_STRIP);
+				m_originalCurve->SetClosed(false);
+				m_iteratedCurve->SetClosed(false);
 			}
 			Reset();
 		}
@@ -251,8 +242,8 @@ auto App::OnImGuiRender() -> void
 
 		if (ImGui::Button("Reset"))
 		{
-			m_initialCps->Vtx().clear();
-			m_iteratedCps->Vtx().clear();
+			m_originalCurve->Cps().clear();
+			m_iteratedCurve->Cps().clear();
 			Reset();
 		}
 	}
@@ -261,7 +252,7 @@ auto App::OnImGuiRender() -> void
 	ImGui::Begin("Info");
 	{
 		ImGui::Text("Iterations: %d", m_iterations);
-		ImGui::Text("Steps: %d/%d", m_steps, m_initialCps->Vtx().size());
+		ImGui::Text("Steps: %d/%d", m_steps, m_originalCurve->Cps().size());
 
 		ImGui::Separator();
 
@@ -294,16 +285,16 @@ auto App::Reset() -> void
 	m_steps = 0;
 	m_iterations = 0;
 
-	m_iteratedCps->Vtx() = m_initialCps->Vtx();
+	m_iteratedCurve->Cps() = m_originalCurve->Cps();
 	CalculateLimitPoint();
 
-	m_originalCurve->Vtx() = Subdivide(m_initialCps->Vtx());
-	m_iteratedCurve->Vtx() = Subdivide(m_iteratedCps->Vtx());
+	m_originalCurve->ResetCurve();
+	m_iteratedCurve->ResetCurve();
 }
 auto App::GetAlpha() const -> float
 {
 	const auto m = m_steps;
-	const auto n = m_initialCps->Vtx().size();
+	const auto n = m_originalCurve->Cps().size();
 
 	if (m_closed)
 		return 4.0f / 6.0f;
@@ -337,7 +328,7 @@ auto App::GetAlpha() const -> float
 }
 auto App::CalculateLimitPoint() const -> void
 {
-	const auto &P = m_iteratedCps->Vtx();
+	const auto &P = m_iteratedCurve->Cps();
 	const auto n = P.size();
 
 	if (n == 0)
@@ -403,18 +394,18 @@ auto App::CalculateLimitPoint() const -> void
 
 auto App::StepVertex(bool updateCurve) -> void
 {
-	if (m_initialCps->Vtx().empty())
+	if (m_originalCurve->Cps().empty())
 		return;
 
 	const auto alpha = GetAlpha();
-	const auto &v = m_initialCps->Vtx()[m_steps];
+	const auto &v = m_originalCurve->Cps()[m_steps];
 	const auto &l = m_limitPt->Vtx()[0];
 
-	m_iteratedCps->Vtx()[m_steps] += (1.0f / alpha) * (v - l);
+	m_iteratedCurve->Cps()[m_steps] += (1.0f / alpha) * (v - l);
 	if (updateCurve)
-		m_iteratedCurve->Vtx() = Subdivide(m_iteratedCps->Vtx());
+		m_iteratedCurve->ResetCurve();
 
-	m_steps = (m_steps + 1) % m_initialCps->Vtx().size();
+	m_steps = (m_steps + 1) % m_originalCurve->Cps().size();
 	if (m_steps == 0)
 		m_iterations++;
 
@@ -422,102 +413,8 @@ auto App::StepVertex(bool updateCurve) -> void
 }
 auto App::Iterate() -> void
 {
-	for (size_t i = m_steps; i < m_initialCps->Vtx().size(); i++)
-		StepVertex(i + 1 == m_initialCps->Vtx().size());
-}
-auto App::Subdivide(const std::vector<glm::vec2> &curvePts) -> std::vector<glm::vec2>
-{
-	if (curvePts.size() < 3)
-		return curvePts;
-
-	auto subdivideClosed = [this](const auto &pts)
-	{
-		auto n = pts.size();
-		auto newPts = std::vector<glm::vec2>{};
-		newPts.reserve(n * 2);
-
-		for (size_t i = 0; i <= n - 1; i++)
-		{
-			const auto &posA = pts[(i + n - 1) % n];
-			const auto &posB = pts[i];
-			const auto &posC = pts[(i + 1) % n];
-
-			const auto newPos1 = (posA + 6.0f * posB + posC) / 8.0f;
-			const auto newPos2 = (posB + posC) / 2.0f;
-
-			newPts.push_back(newPos1);
-			newPts.push_back(newPos2);
-		}
-
-		return newPts;
-	};
-	auto subdivideOpen = [this](const auto &pts)
-	{
-		auto n = pts.size();
-		auto newPts = std::vector<glm::vec2>{};
-		newPts.reserve(n * 2);
-
-		if (n == 3)
-		{
-			newPts.push_back(pts[0]);
-			newPts.push_back(0.5f * pts[0] + 0.5f * pts[1]);
-			newPts.push_back(0.5f * pts[1] + 0.5f * pts[2]);
-			newPts.push_back(pts[2]);
-		}
-		else if (n == 4)
-		{
-			newPts.push_back(pts[0]);
-			newPts.push_back(0.5f * pts[0] + 0.5f * pts[1]);
-			newPts.push_back(0.5f * pts[1] + 0.5f * pts[2]);
-			newPts.push_back(0.5f * pts[2] + 0.5f * pts[3]);
-			newPts.push_back(pts[3]);
-		}
-		else if (n == 5)
-		{
-			newPts.push_back(pts[0]);
-			newPts.push_back(0.5f * pts[0] + 0.5f * pts[1]);
-			newPts.push_back(0.75f * pts[1] + 0.25f * pts[2]);
-			newPts.push_back(3.0f / 16.0f * pts[1] + 10.0f / 16.0f * pts[2] + 3.0f / 16.0f * pts[3]);
-			newPts.push_back(0.25f * pts[2] + 0.75f * pts[3]);
-			newPts.push_back(0.5f * pts[3] + 0.5f * pts[4]);
-			newPts.push_back(pts[4]);
-		}
-		else
-		{
-			newPts.push_back(pts[0]);
-			newPts.push_back(0.5f * pts[0] + 0.5f * pts[1]);
-			newPts.push_back(0.75f * pts[1] + 0.25f * pts[2]);
-			newPts.push_back(3.0f / 16.0f * pts[1] + 11.0f / 16.0f * pts[2] + 2.0f / 16.0f * pts[3]);
-			newPts.push_back(0.5f * pts[2] + 0.5f * pts[3]);
-
-			for (size_t i = 3; i < n - 3; i++)
-			{
-				const auto &posA = pts[i - 1];
-				const auto &posB = pts[i];
-				const auto &posC = pts[i + 1];
-
-				newPts.push_back(2.0f / 16.0f * posA + 12.0f / 16.0f * posB + 2.0f / 16.0f * posC);
-				newPts.push_back((posB + posC) / 2.0f);
-			}
-
-			newPts.push_back(2.0f / 16.0f * pts[n - 4] + 11.0f / 16.0f * pts[n - 3] + 3.0f / 16.0f * pts[n - 2]);
-			newPts.push_back(0.25f * pts[n - 3] + 0.75f * pts[n - 2]);
-			newPts.push_back(0.5f * pts[n - 2] + 0.5f * pts[n - 1]);
-			newPts.push_back(pts[n - 1]);
-		}
-
-		return newPts;
-	};
-	auto subdivide = [this, subdivideClosed, subdivideOpen](const auto &pts)
-	{
-		return m_closed ? subdivideClosed(pts) : subdivideOpen(pts);
-	};
-
-	auto newCurvePts = curvePts;
-	for (size_t i = 0; i < s_curveResolution; ++i)
-		newCurvePts = subdivide(newCurvePts);
-
-	return newCurvePts;
+	for (size_t i = m_steps; i < m_originalCurve->Cps().size(); i++)
+		StepVertex(i + 1 == m_originalCurve->Cps().size());
 }
 
 auto App::ScreenToNDC(int x, int y) -> glm::vec2

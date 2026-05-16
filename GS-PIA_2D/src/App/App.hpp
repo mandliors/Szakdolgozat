@@ -6,7 +6,8 @@
 #include "Camera/Camera.hpp"
 #include "Shader/Shader.hpp"
 #include "Framebuffer/Framebuffer.hpp"
-#include "../Renderable2D.hpp"
+#include "Renderable2D.hpp"
+#include "ApproximatingCurve/ApproximatingCurve.hpp"
 
 #include <vector>
 #include <memory>
@@ -36,7 +37,6 @@ private:
 	auto CalculateLimitPoint() const -> void;
 	auto StepVertex(bool updateCurve = true) -> void;
 	auto Iterate() -> void;
-	auto Subdivide(const std::vector<glm::vec2> &curvePts) -> std::vector<glm::vec2>;
 
 	auto ScreenToNDC(int x, int y) -> glm::vec2;
 
@@ -50,12 +50,9 @@ private:
 private:
 	std::unique_ptr<Shader> m_shader;
 
-	std::unique_ptr<Renderable2D> m_initialCps;
-	std::unique_ptr<Renderable2D> m_iteratedCps;
+	std::unique_ptr<ApproximatingCurve> m_originalCurve;
+	std::unique_ptr<ApproximatingCurve> m_iteratedCurve;
 	std::unique_ptr<Renderable2D> m_limitPt;
-
-	std::unique_ptr<Renderable2D> m_originalCurve;
-	std::unique_ptr<Renderable2D> m_iteratedCurve;
 
 	size_t m_steps = 0;
 	size_t m_iterations = 0;
