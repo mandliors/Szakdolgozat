@@ -21,7 +21,6 @@ public:
     auto StepVertex() -> void;
     auto Iterate() -> void;
 
-    auto SetClosed(bool closed) -> void { m_closed = closed; }
     auto GetIterations() const -> size_t { return m_iterations; }
     auto GetSteps() const -> size_t { return m_steps; }
 
@@ -31,6 +30,4 @@ private:
 
     size_t m_steps = 0;
     size_t m_iterations = 0;
-
-    bool m_closed = true;
 };

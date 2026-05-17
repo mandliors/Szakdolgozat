@@ -6,27 +6,10 @@
 class Solver2D
 {
 public:
-    Solver2D(std::vector<glm::vec2> &originalCps, std::vector<glm::vec2> &iteratedCps)
-        : m_originalCps(originalCps), m_iteratedCps(iteratedCps)
-    {
-    }
-
-    auto Reset() -> void;
-    auto GetAlpha() const -> float;
-    auto GetLimitPoint() const -> std::optional<glm::vec2>;
-    auto StepVertex() -> void;
-    auto Iterate() -> void;
-
-    auto SetClosed(bool closed) -> void { m_closed = closed; }
-    auto GetIterations() const -> size_t { return m_iterations; }
-    auto GetSteps() const -> size_t { return m_steps; }
-
+    static auto GetLimitPoint(const std::vector<glm::vec2>& iterCps, int32_t idx, bool closed) -> std::optional<glm::vec2>;
+    static auto StepVertex(const std::vector<glm::vec2>& origCps, std::vector<glm::vec2>& iterCps, int32_t idx, bool closed) -> void;
+    static auto Iterate(const std::vector<glm::vec2>& origCps, std::vector<glm::vec2>& iterCps, int32_t idx, bool closed) -> void;
+    
 private:
-    std::vector<glm::vec2> &m_originalCps;
-    std::vector<glm::vec2> &m_iteratedCps;
-
-    size_t m_steps = 0;
-    size_t m_iterations = 0;
-
-    bool m_closed = true;
+    static auto GetAlpha(int32_t idx, int32_t nVertices, bool closed) -> float;
 };

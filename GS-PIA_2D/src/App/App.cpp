@@ -48,8 +48,6 @@ auto App::OnInit() -> void
 		glm::vec2{0.0f, -0.45f},
 	};
 
-	m_solver = std::make_unique<Solver2D>(m_originalCurve->Cps(), m_iteratedCurve->Cps());
-
 	Reset();
 
 	// ImGui
@@ -224,39 +222,44 @@ auto App::OnImGuiRender() -> void
 			{
 				m_originalCurve->SetClosed(true);
 				m_iteratedCurve->SetClosed(true);
-				m_solver->SetClosed(true);
 			}
 			else
 			{
 				m_originalCurve->SetClosed(false);
 				m_iteratedCurve->SetClosed(false);
-				m_solver->SetClosed(false);
 			}
 			Reset();
 		}
 
 		if (ImGui::Button("Step"))
 		{
-			m_solver->StepVertex();
-			if (auto limitPt = m_solver->GetLimitPoint())
+			Solver2D::StepVertex(m_originalCurve->Cps(), m_iteratedCurve->Cps(), m_steps, m_closed);
+			m_steps = (m_steps + 1) % m_originalCurve->Cps().size();
+			if (m_steps == 0)
+    		    m_iterations++;
+
+			if (auto limitPt = Solver2D::GetLimitPoint(m_iteratedCurve->Cps(), m_steps, m_closed))
 				m_limitPt->Vtx()[0] = *limitPt;
 			else
 				m_limitPt->Vtx().clear();
 
-			m_iteratedCurve->ResetCurve();
+			m_iteratedCurve->Reset();
 		}
 
 		ImGui::SameLine();
 
 		if (ImGui::Button("Iterate"))
 		{
-			m_solver->Iterate();
-			if (auto limitPt = m_solver->GetLimitPoint())
+			Solver2D::Iterate(m_originalCurve->Cps(), m_iteratedCurve->Cps(), m_steps, m_closed);
+			m_steps = 0;
+			m_iterations++;
+
+			if (auto limitPt = Solver2D::GetLimitPoint(m_iteratedCurve->Cps(), m_steps, m_closed))
 				m_limitPt->Vtx()[0] = *limitPt;
 			else
 				m_limitPt->Vtx().clear();
 
-			m_iteratedCurve->ResetCurve();
+			m_iteratedCurve->Reset();
 		}
 
 		ImGui::SameLine();
@@ -272,8 +275,8 @@ auto App::OnImGuiRender() -> void
 
 	ImGui::Begin("Info");
 	{
-		ImGui::Text("Iterations: %d", m_solver->GetIterations());
-		ImGui::Text("Steps: %d/%d", m_solver->GetSteps(), m_iteratedCurve->Cps().size());
+		ImGui::Text("Iterations: %d", m_iterations);
+		ImGui::Text("Steps: %d/%d", m_steps, m_iteratedCurve->Cps().size());
 
 		ImGui::Separator();
 
@@ -303,11 +306,14 @@ auto App::OnImGuiRender() -> void
 
 auto App::Reset() -> void
 {
-	m_solver->Reset();
-	m_originalCurve->ResetCurve();
-	m_iteratedCurve->ResetCurve();
+	m_iteratedCurve->Cps() = m_originalCurve->Cps();
+	m_steps = 0;
+	m_iterations = 0;
+	
+	m_originalCurve->Reset();
+	m_iteratedCurve->Reset();
 
-	if (auto limitPt = m_solver->GetLimitPoint())
+	if (auto limitPt = Solver2D::GetLimitPoint(m_iteratedCurve->Cps(), m_steps, m_closed))
 		m_limitPt->Vtx() = {*limitPt};
 	else
 		m_limitPt->Vtx().clear();

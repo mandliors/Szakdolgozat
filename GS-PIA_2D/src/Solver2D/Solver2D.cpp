@@ -1,62 +1,20 @@
 #include "Solver2D.hpp"
 
-auto Solver2D::Reset() -> void
+auto Solver2D::GetLimitPoint(const std::vector<glm::vec2>& iterCps, int32_t idx, bool closed) -> std::optional<glm::vec2>
 {
-    m_steps = 0;
-    m_iterations = 0;
-
-    m_iteratedCps = m_originalCps;
-}
-auto Solver2D::GetAlpha() const -> float
-{
-    const auto m = m_steps;
-    const auto n = m_originalCps.size();
-
-    if (m_closed)
-        return 4.0f / 6.0f;
-    else
-    {
-        if (n == 3)
-            return (m == 0 || m == 2) ? 1.0f : 6.0f / 16.0f;
-        else if (n == 4)
-            return (m == 0 || m == 3) ? 1.0f : 12.0f / 27.0f;
-        else if (n == 5)
-        {
-            if (m == 0 || m == 4)
-                return 1.0f;
-            else if (m == 1 || m == 3)
-                return 61.0f / 108.0f;
-            else // m = 2
-                return 2.0f / 4.0f;
-        }
-        else
-        {
-            if (m == 0 || m == n - 1)
-                return 1.0f;
-            else if (m == 1 || m == n - 2)
-                return 183.0f / 324.0f;
-            else if (m == 2 || m == n - 3)
-                return 7.0f / 12.0f;
-            else
-                return 4.0f / 6.0f;
-        }
-    }
-}
-auto Solver2D::GetLimitPoint() const -> std::optional<glm::vec2>
-{
-    const auto &P = m_iteratedCps;
+    const auto &P = iterCps;
     const auto n = P.size();
 
     if (n == 0)
         return std::nullopt;
 
-    auto prevPrev = (m_steps + n - 2) % n;
-    auto prev = (m_steps + n - 1) % n;
-    auto curr = m_steps;
-    auto next = (m_steps + 1) % n;
-    auto nextNext = (m_steps + 2) % n;
+    auto prevPrev = (idx + n - 2) % n;
+    auto prev = (idx + n - 1) % n;
+    auto curr = idx;
+    auto next = (idx + 1) % n;
+    auto nextNext = (idx + 2) % n;
 
-    if (m_closed)
+    if (closed)
         return std::make_optional<glm::vec2>((1.0f * P[prev] + 4.0f * P[curr] + 1.0f * P[next]) / 6.0f);
     else
     {
@@ -104,23 +62,55 @@ auto Solver2D::GetLimitPoint() const -> std::optional<glm::vec2>
         }
     }
 }
-auto Solver2D::StepVertex() -> void
+auto Solver2D::StepVertex(const std::vector<glm::vec2>& origCps, std::vector<glm::vec2>& iterCps, int32_t idx, bool closed) -> void
 {
-    if (m_originalCps.empty())
+    if (origCps.empty())
         return;
 
-    const auto alpha = GetAlpha();
-    const auto &v = m_originalCps[m_steps];
-    const auto &l = GetLimitPoint().value_or(v);
+    const auto alpha = GetAlpha(idx, origCps.size(), closed);
+    const auto &v = origCps[idx];
+    const auto &l = GetLimitPoint(iterCps, idx, closed).value_or(v);
 
-    m_iteratedCps[m_steps] += (1.0f / alpha) * (v - l);
-
-    m_steps = (m_steps + 1) % m_originalCps.size();
-    if (m_steps == 0)
-        m_iterations++;
+    iterCps[idx] += (1.0f / alpha) * (v - l);
 }
-auto Solver2D::Iterate() -> void
+auto Solver2D::Iterate(const std::vector<glm::vec2>& origCps, std::vector<glm::vec2>& iterCps, int32_t idx, bool closed) -> void
 {
-    for (size_t i = m_steps; i < m_originalCps.size(); i++)
-        StepVertex();
+    for (size_t i = idx; i < origCps.size(); i++)
+        StepVertex(origCps, iterCps, idx, closed);
+}
+
+auto Solver2D::GetAlpha(int32_t idx, int32_t nVertices, bool closed) -> float
+{
+    const auto m = idx;
+    const auto n = nVertices;
+
+    if (closed)
+        return 4.0f / 6.0f;
+    else
+    {
+        if (n == 3)
+            return (m == 0 || m == 2) ? 1.0f : 6.0f / 16.0f;
+        else if (n == 4)
+            return (m == 0 || m == 3) ? 1.0f : 12.0f / 27.0f;
+        else if (n == 5)
+        {
+            if (m == 0 || m == 4)
+                return 1.0f;
+            else if (m == 1 || m == 3)
+                return 61.0f / 108.0f;
+            else // m = 2
+                return 2.0f / 4.0f;
+        }
+        else
+        {
+            if (m == 0 || m == n - 1)
+                return 1.0f;
+            else if (m == 1 || m == n - 2)
+                return 183.0f / 324.0f;
+            else if (m == 2 || m == n - 3)
+                return 7.0f / 12.0f;
+            else
+                return 4.0f / 6.0f;
+        }
+    }
 }

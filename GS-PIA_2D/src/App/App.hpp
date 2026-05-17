@@ -51,9 +51,10 @@ private:
 	std::unique_ptr<ApproximatingCurve> m_iteratedCurve;
 	std::unique_ptr<Renderable2D> m_limitPt;
 
-	std::unique_ptr<Solver2D> m_solver;
-
 	bool m_closed = true;
+	int32_t m_steps;
+	int32_t m_iterations;
+
 	glm::vec2 *m_draggedVertex = nullptr;
 
 	std::unique_ptr<Framebuffer> m_framebuffer;
