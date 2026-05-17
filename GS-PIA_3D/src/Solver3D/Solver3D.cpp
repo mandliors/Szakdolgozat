@@ -1,5 +1,10 @@
 #include "Solver3D.hpp"
 
+auto Solver3D::Reset() -> void
+{
+    m_steps = 0;
+    m_iterations = 0;
+}
 auto Solver3D::GetAlpha() const -> float
 {
     const auto &mesh = m_iteratedMesh;

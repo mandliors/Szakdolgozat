@@ -308,6 +308,11 @@ auto App::OnImGuiRender() -> void
 	if (ImGui::Button("Step") && m_solver)
 	{
 		m_solver->StepVertex();
+		if (auto limitPt = m_solver->GetLimitPoint())
+			m_limitPt->Vtx()[0] = *limitPt;
+		else
+			m_limitPt->Vtx().clear();
+			
 		m_iteratedMesh->ResetSurface();
 		m_iteratedMesh->UpdateGPU();
 	}
@@ -315,6 +320,11 @@ auto App::OnImGuiRender() -> void
 	if (ImGui::Button("Iterate") && m_solver)
 	{
 		m_solver->Iterate();
+		if (auto limitPt = m_solver->GetLimitPoint())
+			m_limitPt->Vtx()[0] = *limitPt;
+		else
+			m_limitPt->Vtx().clear();
+
 		m_iteratedMesh->ResetSurface();
 		m_iteratedMesh->UpdateGPU();
 	}
@@ -384,6 +394,7 @@ auto App::Reset() -> void
 
 	if (m_solver)
 	{
+		m_solver->Reset();
 		if (auto limitPt = m_solver->GetLimitPoint())
 			m_limitPt->Vtx() = {*limitPt};
 		else
