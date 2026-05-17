@@ -313,7 +313,7 @@ auto App::OnImGuiRender() -> void
 		else
 			m_limitPt->Vtx().clear();
 			
-		m_iteratedMesh->ResetSurface();
+		m_iteratedMesh->Reset();
 		m_iteratedMesh->UpdateGPU();
 	}
 	ImGui::SameLine();
@@ -325,7 +325,7 @@ auto App::OnImGuiRender() -> void
 		else
 			m_limitPt->Vtx().clear();
 
-		m_iteratedMesh->ResetSurface();
+		m_iteratedMesh->Reset();
 		m_iteratedMesh->UpdateGPU();
 	}
 	ImGui::SameLine();
@@ -384,12 +384,12 @@ auto App::Reset() -> void
 	m_quat = glm::quat{1.0f, 0.0f, 0.0f, 0.0f};
 
 	if (m_originalMesh)
-		m_originalMesh->ResetSurface(), m_originalMesh->UpdateGPU();
+		m_originalMesh->Reset(), m_originalMesh->UpdateGPU();
 
 	if (m_iteratedMesh)
 	{
 		m_iteratedMesh->TopologyMesh() = m_originalMesh->TopologyMesh();
-		m_iteratedMesh->ResetSurface(), m_iteratedMesh->UpdateGPU();
+		m_iteratedMesh->Reset(), m_iteratedMesh->UpdateGPU();
 	}
 
 	if (m_solver)

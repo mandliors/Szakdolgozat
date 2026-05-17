@@ -16,13 +16,15 @@ public:
     }
 
     auto Reset() -> void;
-    auto GetAlpha() const -> float;
     auto GetLimitPoint() const -> std::optional<glm::vec3>;
     auto StepVertex() -> void;
     auto Iterate() -> void;
 
     auto GetIterations() const -> size_t { return m_iterations; }
     auto GetSteps() const -> size_t { return m_steps; }
+
+private:
+    auto GetAlpha() const -> float;
 
 private:
     PolyMesh &m_originalMesh;

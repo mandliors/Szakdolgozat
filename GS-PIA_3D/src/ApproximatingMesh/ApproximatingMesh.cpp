@@ -22,7 +22,7 @@ auto ApproximatingMesh::Draw(const RenderState& renderState) const -> void
 	m_sfcRenderer->Draw(renderState);
 	m_cpsRenderer->Draw(renderState);
 }
-auto ApproximatingMesh::ResetSurface() -> void
+auto ApproximatingMesh::Reset() -> void
 {
 	m_sfc = m_cps;
 	if (m_subdivider.attach(m_sfc))

@@ -18,7 +18,7 @@ public:
 
 	auto UpdateGPU() -> void;
 	auto Draw(const RenderState &renderState) const -> void;
-	auto ResetSurface() -> void;
+	auto Reset() -> void;
 
 	auto TopologyMesh() -> PolyMesh &;
 	auto RenderMesh() -> MeshRenderer &;
