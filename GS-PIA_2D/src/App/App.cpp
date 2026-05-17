@@ -243,7 +243,7 @@ auto App::OnImGuiRender() -> void
 			else
 				m_limitPt->Vtx().clear();
 
-			m_iteratedCurve->UpdateCurve();
+			m_iteratedCurve->ResetCurve();
 		}
 
 		ImGui::SameLine();
@@ -256,7 +256,7 @@ auto App::OnImGuiRender() -> void
 			else
 				m_limitPt->Vtx().clear();
 
-			m_iteratedCurve->UpdateCurve();
+			m_iteratedCurve->ResetCurve();
 		}
 
 		ImGui::SameLine();
@@ -304,8 +304,8 @@ auto App::OnImGuiRender() -> void
 auto App::Reset() -> void
 {
 	m_solver->Reset();
-	m_originalCurve->UpdateCurve();
-	m_iteratedCurve->UpdateCurve();
+	m_originalCurve->ResetCurve();
+	m_iteratedCurve->ResetCurve();
 
 	if (auto limitPt = m_solver->GetLimitPoint())
 		m_limitPt->Vtx() = {*limitPt};

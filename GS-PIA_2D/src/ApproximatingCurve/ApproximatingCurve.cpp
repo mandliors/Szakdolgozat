@@ -22,7 +22,7 @@ auto ApproximatingCurve::Draw() const -> void
 
     m_crv->Draw();
 }
-auto ApproximatingCurve::UpdateCurve() -> void
+auto ApproximatingCurve::ResetCurve() -> void
 {
     m_crv->Vtx() = Subdivide(m_cps->Vtx());
 }

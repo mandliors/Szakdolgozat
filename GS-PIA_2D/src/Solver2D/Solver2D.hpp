@@ -6,7 +6,10 @@
 class Solver2D
 {
 public:
-    Solver2D(std::vector<glm::vec2> &initialCps, std::vector<glm::vec2> &iteratedCps);
+    Solver2D(std::vector<glm::vec2> &originalCps, std::vector<glm::vec2> &iteratedCps)
+        : m_originalCps(originalCps), m_iteratedCps(iteratedCps)
+    {
+    }
 
     auto Reset() -> void;
     auto GetAlpha() const -> float;

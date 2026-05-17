@@ -1,10 +1,5 @@
 #include "Solver2D.hpp"
 
-Solver2D::Solver2D(std::vector<glm::vec2> &initialCps, std::vector<glm::vec2> &iteratedCps)
-    : m_originalCps(initialCps), m_iteratedCps(iteratedCps)
-{
-}
-
 auto Solver2D::Reset() -> void
 {
     m_steps = 0;
