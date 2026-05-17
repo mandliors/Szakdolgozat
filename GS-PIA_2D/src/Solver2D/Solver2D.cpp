@@ -76,7 +76,7 @@ auto Solver2D::StepVertex(const std::vector<glm::vec2>& origCps, std::vector<glm
 auto Solver2D::Iterate(const std::vector<glm::vec2>& origCps, std::vector<glm::vec2>& iterCps, int32_t idx, bool closed) -> void
 {
     for (size_t i = idx; i < origCps.size(); i++)
-        StepVertex(origCps, iterCps, idx, closed);
+        StepVertex(origCps, iterCps, i, closed);
 }
 
 auto Solver2D::GetAlpha(int32_t idx, int32_t nVertices, bool closed) -> float
