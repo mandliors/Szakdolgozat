@@ -10,15 +10,14 @@
 #include "MeshRenderer/Shaders/FaceShader.hpp"
 #include "MeshRenderer/Shaders/EdgeShader.hpp"
 #include "MeshRenderer/Shaders/PointShader.hpp"
-#include "../ApproximatingMesh/ApproximatingMesh.hpp"
+#include "ApproximatingMesh/ApproximatingMesh.hpp"
 #include "Framebuffer/Framebuffer.hpp"
-#include "../Renderable3D.hpp"
+#include "Renderable3D.hpp"
+#include "Solver3D/Solver3D.hpp"
 
 #include <vector>
 #include <memory>
 #include <string>
-
-namespace fs = std::filesystem;
 
 typedef OpenMesh::PolyMesh_ArrayKernelT<> PolyMesh;
 
@@ -42,10 +41,6 @@ private:
 	auto LoadModels() -> void;
 
 	auto Reset() -> void;
-	auto GetAlpha() const -> float;
-	auto CalculateLimitPoint() const -> void;
-	auto StepVertex(bool updateMesh = true) -> void;
-	auto Iterate() -> void;
 
 	auto ScreenToNDC(int x, int y) -> glm::vec2;
 	auto ScreenToArcball(int x, int y) -> glm::vec3;
@@ -69,6 +64,8 @@ private:
 	std::unique_ptr<ApproximatingMesh> m_originalMesh;
 	std::unique_ptr<ApproximatingMesh> m_iteratedMesh;
 	std::unique_ptr<Renderable3D> m_limitPt;
+
+	std::unique_ptr<Solver3D> m_solver;
 
 	std::string m_modelsPath{"assets/models"};
 	std::unordered_map<std::string, std::unique_ptr<PolyMesh>> m_models;

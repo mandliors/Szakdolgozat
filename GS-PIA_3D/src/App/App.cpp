@@ -48,6 +48,8 @@ auto App::OnInit() -> void
 	LoadModels();
 
 	m_limitPt = std::make_unique<Renderable3D>(*m_pointShader, GL_POINTS, s_limitPtColor);
+	m_solver = nullptr;
+
 	Reset();
 
 	// ImGui
@@ -269,6 +271,7 @@ auto App::OnImGuiRender() -> void
 			{
 				m_originalMesh = std::make_unique<ApproximatingMesh>(*model, *m_faceShader, *m_edgeShader, *m_pointShader, s_initialColor, s_edgeColor, s_initialColor);
 				m_iteratedMesh = std::make_unique<ApproximatingMesh>(*model, *m_faceShader, *m_edgeShader, *m_pointShader, s_iteratedColor, s_edgeColor, s_iteratedColor);
+				m_solver = std::make_unique<Solver3D>(m_originalMesh->TopologyMesh(), m_iteratedMesh->TopologyMesh());
 			}
 			else
 			{
@@ -302,11 +305,19 @@ auto App::OnImGuiRender() -> void
 	if (ImGui::SliderInt("Resolution", &m_surfaceResolution, 1, 8))
 		ApproximatingMesh::SetSurfaceResolution(m_surfaceResolution), Reset();
 
-	if (ImGui::Button("Step"))
-		StepVertex();
+	if (ImGui::Button("Step") && m_solver)
+	{
+		m_solver->StepVertex();
+		m_iteratedMesh->ResetSurface();
+		m_iteratedMesh->UpdateGPU();
+	}
 	ImGui::SameLine();
-	if (ImGui::Button("Iterate"))
-		Iterate();
+	if (ImGui::Button("Iterate") && m_solver)
+	{
+		m_solver->Iterate();
+		m_iteratedMesh->ResetSurface();
+		m_iteratedMesh->UpdateGPU();
+	}
 	ImGui::SameLine();
 	if (ImGui::Button("Reset"))
 		Reset();
@@ -371,129 +382,13 @@ auto App::Reset() -> void
 		m_iteratedMesh->ResetSurface(), m_iteratedMesh->UpdateGPU();
 	}
 
-	CalculateLimitPoint();
-}
-auto App::GetAlpha() const -> float
-{
-	if (!m_iteratedMesh)
-		return 0.0f;
-
-	const auto &mesh = m_iteratedMesh->TopologyMesh();
-	auto vh = mesh.vertex_handle(m_steps);
-	auto n = mesh.valence(vh);
-
-	if (mesh.is_boundary(vh))
-		return 4.0f / 6.0f;
-	else
-		return n * n / static_cast<float>(n * (n + 5));
-}
-auto App::CalculateLimitPoint() const -> void
-{
-	if (!m_iteratedMesh)
+	if (m_solver)
 	{
-		m_limitPt->Vtx().clear();
-		return;
+		if (auto limitPt = m_solver->GetLimitPoint())
+			m_limitPt->Vtx() = {*limitPt};
+		else
+			m_limitPt->Vtx().clear();
 	}
-
-	const auto &mesh = m_iteratedMesh->TopologyMesh();
-	auto vh = mesh.vertex_handle(m_steps);
-	PolyMesh::Point limitPt;
-
-	// open mesh, we are on a boundary, apply [1 4 1]/6 stencil
-	if (mesh.is_boundary(vh))
-	{
-		auto bh = mesh.halfedge_handle(vh);
-		auto nextVh = mesh.to_vertex_handle(bh);
-		auto prevVh = mesh.to_vertex_handle(mesh.opposite_halfedge_handle(mesh.prev_halfedge_handle(bh)));
-
-		limitPt = (1.0f * mesh.point(prevVh) + 4.0f * mesh.point(vh) + 1.0f * mesh.point(nextVh)) / 6.0f;
-	}
-	else
-	{
-		auto n = mesh.valence(vh);
-		auto alpha = GetAlpha();
-
-		auto faceMult = 1.0f / (n * (n + 5));
-		PolyMesh::Point facePtSum{0.0f, 0.0f, 0.0f};
-		std::vector<PolyMesh::Point> faceCentroids;
-		for (auto fh : mesh.vf_range(vh))
-		{
-			facePtSum += mesh.calc_face_centroid(fh);
-			faceCentroids.push_back(mesh.calc_face_centroid(fh));
-		}
-
-		auto edgeMult = 4.0f / (n * (n + 5));
-		PolyMesh::Point edgePt0Sum{0.0f, 0.0f, 0.0f};
-		PolyMesh::Point edgePt1Sum{0.0f, 0.0f, 0.0f};
-		uint32_t j = 0;
-		for (auto ohh : mesh.voh_range(vh))
-		{
-			auto e0 = mesh.point(mesh.to_vertex_handle(ohh));
-			auto &fPrev = faceCentroids[(j - 1 + n) % n];
-			auto &fCurr = faceCentroids[j];
-			auto &v0 = mesh.point(vh);
-			auto e1 = (v0 + e0 + fPrev + fCurr) / 4.0f;
-
-			edgePt0Sum += e0;
-			edgePt1Sum += e1;
-			j++;
-		}
-
-		const auto &v0 = m_iteratedMesh->TopologyMesh().point(vh);
-		auto v0Mult = (n - 2) / static_cast<float>(n);
-		auto mult = 1.0f / (n * n);
-		auto v1 = v0Mult * v0 + mult * edgePt0Sum + mult * facePtSum;
-
-		limitPt = alpha * v1 + edgeMult * edgePt1Sum + faceMult * facePtSum;
-	}
-
-	m_limitPt->Vtx() = {{limitPt[0], limitPt[1], limitPt[2]}};
-}
-auto App::StepVertex(bool updateMesh) -> void
-{
-	if (!m_iteratedMesh)
-		return;
-
-	const auto alpha = GetAlpha();
-
-	auto &originalMesh = m_originalMesh->TopologyMesh();
-	auto &iteratedMesh = m_iteratedMesh->TopologyMesh();
-
-	auto ovh = originalMesh.vertex_handle(m_steps);
-	auto ivh = iteratedMesh.vertex_handle(m_steps);
-
-	const auto &v0 = originalMesh.point(ovh);
-	const auto &v = iteratedMesh.point(ivh);
-	const auto &l = PolyMesh::Point{m_limitPt->Vtx()[0].x, m_limitPt->Vtx()[0].y, m_limitPt->Vtx()[0].z};
-
-	const auto vUpdated = v + (1.0f / alpha) * (v0 - l);
-
-	auto &iteratedCpsMesh = m_iteratedMesh->TopologyMesh();
-	auto &iteratedSfcMesh = m_iteratedMesh->TopologyMesh();
-
-	auto ivhCps = iteratedCpsMesh.vertex_handle(m_steps);
-	auto ivhSfc = iteratedSfcMesh.vertex_handle(m_steps);
-
-	iteratedCpsMesh.set_point(ivhCps, vUpdated);
-	iteratedSfcMesh.set_point(ivhSfc, vUpdated);
-
-	if (updateMesh)
-		m_iteratedMesh->ResetSurface(), m_iteratedMesh->UpdateGPU();
-
-	m_steps = (m_steps + 1) % originalMesh.n_vertices();
-	if (m_steps == 0)
-		m_iterations++;
-
-	CalculateLimitPoint();
-}
-auto App::Iterate() -> void
-{
-	if (!m_iteratedMesh)
-		return;
-
-	auto n = m_originalMesh->TopologyMesh().n_vertices();
-	for (size_t i = m_steps; i < n; i++)
-		StepVertex(i + 1 == n);
 }
 
 auto App::ScreenToNDC(int x, int y) -> glm::vec2
