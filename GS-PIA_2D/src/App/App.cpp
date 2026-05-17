@@ -47,6 +47,9 @@ auto App::OnInit() -> void
 		glm::vec2{0.5f, -0.3f},
 		glm::vec2{0.0f, -0.45f},
 	};
+
+	m_solver = std::make_unique<Solver2D>(m_originalCurve->Cps(), m_iteratedCurve->Cps());
+
 	Reset();
 
 	// ImGui
@@ -221,22 +224,40 @@ auto App::OnImGuiRender() -> void
 			{
 				m_originalCurve->SetClosed(true);
 				m_iteratedCurve->SetClosed(true);
+				m_solver->SetClosed(true);
 			}
 			else
 			{
 				m_originalCurve->SetClosed(false);
 				m_iteratedCurve->SetClosed(false);
+				m_solver->SetClosed(false);
 			}
 			Reset();
 		}
 
 		if (ImGui::Button("Step"))
-			StepVertex();
+		{
+			m_solver->StepVertex();
+			if (auto limitPt = m_solver->GetLimitPoint())
+				m_limitPt->Vtx()[0] = *limitPt;
+			else
+				m_limitPt->Vtx().clear();
+
+			m_iteratedCurve->UpdateCurve();
+		}
 
 		ImGui::SameLine();
 
 		if (ImGui::Button("Iterate"))
-			Iterate();
+		{
+			m_solver->Iterate();
+			if (auto limitPt = m_solver->GetLimitPoint())
+				m_limitPt->Vtx()[0] = *limitPt;
+			else
+				m_limitPt->Vtx().clear();
+
+			m_iteratedCurve->UpdateCurve();
+		}
 
 		ImGui::SameLine();
 
@@ -251,8 +272,8 @@ auto App::OnImGuiRender() -> void
 
 	ImGui::Begin("Info");
 	{
-		ImGui::Text("Iterations: %d", m_iterations);
-		ImGui::Text("Steps: %d/%d", m_steps, m_originalCurve->Cps().size());
+		ImGui::Text("Iterations: %d", m_solver->GetIterations());
+		ImGui::Text("Steps: %d/%d", m_solver->GetSteps(), m_iteratedCurve->Cps().size());
 
 		ImGui::Separator();
 
@@ -282,139 +303,14 @@ auto App::OnImGuiRender() -> void
 
 auto App::Reset() -> void
 {
-	m_steps = 0;
-	m_iterations = 0;
+	m_solver->Reset();
+	m_originalCurve->UpdateCurve();
+	m_iteratedCurve->UpdateCurve();
 
-	m_iteratedCurve->Cps() = m_originalCurve->Cps();
-	CalculateLimitPoint();
-
-	m_originalCurve->ResetCurve();
-	m_iteratedCurve->ResetCurve();
-}
-auto App::GetAlpha() const -> float
-{
-	const auto m = m_steps;
-	const auto n = m_originalCurve->Cps().size();
-
-	if (m_closed)
-		return 4.0f / 6.0f;
+	if (auto limitPt = m_solver->GetLimitPoint())
+		m_limitPt->Vtx() = {*limitPt};
 	else
-	{
-		if (n == 3)
-			return (m == 0 || m == 2) ? 1.0f : 6.0f / 16.0f;
-		else if (n == 4)
-			return (m == 0 || m == 3) ? 1.0f : 12.0f / 27.0f;
-		else if (n == 5)
-		{
-			if (m == 0 || m == 4)
-				return 1.0f;
-			else if (m == 1 || m == 3)
-				return 61.0f / 108.0f;
-			else // m = 2
-				return 2.0f / 4.0f;
-		}
-		else
-		{
-			if (m == 0 || m == n - 1)
-				return 1.0f;
-			else if (m == 1 || m == n - 2)
-				return 183.0f / 324.0f;
-			else if (m == 2 || m == n - 3)
-				return 7.0f / 12.0f;
-			else
-				return 4.0f / 6.0f;
-		}
-	}
-}
-auto App::CalculateLimitPoint() const -> void
-{
-	const auto &P = m_iteratedCurve->Cps();
-	const auto n = P.size();
-
-	if (n == 0)
-	{
 		m_limitPt->Vtx().clear();
-		return;
-	}
-
-	auto prevPrev = (m_steps + n - 2) % n;
-	auto prev = (m_steps + n - 1) % n;
-	auto curr = m_steps;
-	auto next = (m_steps + 1) % n;
-	auto nextNext = (m_steps + 2) % n;
-
-	if (m_closed)
-		m_limitPt->Vtx() = {(1.0f * P[prev] + 4.0f * P[curr] + 1.0f * P[next]) / 6.0f};
-	else
-	{
-		if (n == 3)
-		{
-			if (curr == 0 || curr == 2)
-				m_limitPt->Vtx() = {1.0f * P[curr]};
-			else // n = 1
-				m_limitPt->Vtx() = {(5.0f * P[prev] + 6.0f * P[curr] + 5.0f * P[next]) / 16.0f};
-		}
-		else if (n == 4)
-		{
-			if (curr == 0 || curr == 3)
-				m_limitPt->Vtx() = {1.0f * P[curr]};
-			else if (curr == 1)
-				m_limitPt->Vtx() = {(8.0f * P[prev] + 12.0f * P[curr] + 6.0f * P[next] + 1.0f * P[nextNext]) / 27.0f};
-			else // curr = 2
-				m_limitPt->Vtx() = {(1.0f * P[prevPrev] + 6.0f * P[prev] + 12.0f * P[curr] + 8.0f * P[next]) / 27.0f};
-		}
-		else if (n == 5)
-		{
-			if (curr == 0 || curr == 4)
-				m_limitPt->Vtx() = {1.0f * P[curr]};
-			else if (curr == 1)
-				m_limitPt->Vtx() = {(32.0f * P[prev] + 61.0f * P[curr] + 14.0f * P[next] + 1.0f * P[nextNext]) / 108.0f};
-			else if (curr == 3)
-				m_limitPt->Vtx() = {(1.0f * P[prevPrev] + 14.0f * P[prev] + 61.0f * P[curr] + 32.0f * P[next]) / 108.0f};
-			else // curr = 2
-				m_limitPt->Vtx() = {(1.0f * P[prev] + 2.0f * P[curr] + 1.0f * P[next]) / 4.0f};
-		}
-		else
-		{
-			if (2 < curr && curr < n - 3)
-				m_limitPt->Vtx() = {(1.0f * P[prev] + 4.0f * P[curr] + 1.0f * P[next]) / 6.0f};
-			else if (curr == 0 || curr == n - 1)
-				m_limitPt->Vtx() = {1.0f * P[curr]};
-			else if (curr == 1)
-				m_limitPt->Vtx() = {(96.0f * P[prev] + 183.0f * P[curr] + 43.0f * P[next] + 2.0f * P[nextNext]) / 324.0f};
-			else if (curr == n - 2)
-				m_limitPt->Vtx() = {(2.0f * P[prevPrev] + 43.0f * P[prev] + 183.0f * P[curr] + 96.0f * P[next]) / 324.0f};
-			else if (curr == 2)
-				m_limitPt->Vtx() = {(3.0f * P[prev] + 7.0f * P[curr] + 2.0f * P[next]) / 12.0f};
-			else if (curr == n - 3)
-				m_limitPt->Vtx() = {(2.0f * P[prev] + 7.0f * P[curr] + 3.0f * P[next]) / 12.0f};
-		}
-	}
-}
-
-auto App::StepVertex(bool updateCurve) -> void
-{
-	if (m_originalCurve->Cps().empty())
-		return;
-
-	const auto alpha = GetAlpha();
-	const auto &v = m_originalCurve->Cps()[m_steps];
-	const auto &l = m_limitPt->Vtx()[0];
-
-	m_iteratedCurve->Cps()[m_steps] += (1.0f / alpha) * (v - l);
-	if (updateCurve)
-		m_iteratedCurve->ResetCurve();
-
-	m_steps = (m_steps + 1) % m_originalCurve->Cps().size();
-	if (m_steps == 0)
-		m_iterations++;
-
-	CalculateLimitPoint();
-}
-auto App::Iterate() -> void
-{
-	for (size_t i = m_steps; i < m_originalCurve->Cps().size(); i++)
-		StepVertex(i + 1 == m_originalCurve->Cps().size());
 }
 
 auto App::ScreenToNDC(int x, int y) -> glm::vec2

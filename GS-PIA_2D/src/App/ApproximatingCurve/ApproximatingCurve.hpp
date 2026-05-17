@@ -11,7 +11,7 @@ public:
 
     auto UpdateGPU() -> void;
     auto Draw() const -> void;
-    auto ResetCurve() -> void;
+    auto UpdateCurve() -> void;
 
     auto SetClosed(bool closed) -> void;
     auto Cps() -> std::vector<glm::vec2> &;

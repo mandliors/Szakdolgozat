@@ -8,6 +8,7 @@
 #include "Framebuffer/Framebuffer.hpp"
 #include "Renderable2D.hpp"
 #include "ApproximatingCurve/ApproximatingCurve.hpp"
+#include "Solver2D/Solver2D.hpp"
 
 #include <vector>
 #include <memory>
@@ -33,10 +34,6 @@ private:
 	auto OnImGuiRender() -> void;
 
 	auto Reset() -> void;
-	auto GetAlpha() const -> float;
-	auto CalculateLimitPoint() const -> void;
-	auto StepVertex(bool updateCurve = true) -> void;
-	auto Iterate() -> void;
 
 	auto ScreenToNDC(int x, int y) -> glm::vec2;
 
@@ -54,8 +51,8 @@ private:
 	std::unique_ptr<ApproximatingCurve> m_iteratedCurve;
 	std::unique_ptr<Renderable2D> m_limitPt;
 
-	size_t m_steps = 0;
-	size_t m_iterations = 0;
+	std::unique_ptr<Solver2D> m_solver;
+
 	bool m_closed = true;
 	glm::vec2 *m_draggedVertex = nullptr;
 
