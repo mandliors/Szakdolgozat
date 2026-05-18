@@ -7,7 +7,7 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
 
-#include "App.hpp"
+#include "App2D.hpp"
 #include "Rendering/RenderState.hpp"
 
 #include <array>
@@ -15,12 +15,12 @@
 
 namespace fs = std::filesystem;
 
-App::App(uint32_t width, uint32_t height, std::string_view title)
+App2D::App2D(uint32_t width, uint32_t height, std::string_view title)
 	: BaseApp(width, height, title)
 {
 }
 
-auto App::OnInit() -> void
+auto App2D::OnInit() -> void
 {
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
@@ -65,7 +65,7 @@ auto App::OnInit() -> void
 
 	OnImGuiInit();
 }
-auto App::OnRender() -> void
+auto App2D::OnRender() -> void
 {
 	m_framebuffer->Bind();
 
@@ -90,14 +90,14 @@ auto App::OnRender() -> void
 
 	OnImGuiRender();
 }
-auto App::OnDestroy() -> void
+auto App2D::OnDestroy() -> void
 {
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
 }
 
-auto App::OnMouseMotion(int x, int y) -> void
+auto App2D::OnMouseMotion(int x, int y) -> void
 {
 	if (m_draggedVertex)
 	{
@@ -105,7 +105,7 @@ auto App::OnMouseMotion(int x, int y) -> void
 		Reset();
 	}
 }
-auto App::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
+auto App2D::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
 {
 	if (button == GLFW_MOUSE_BUTTON_LEFT)
 	{
@@ -128,12 +128,12 @@ auto App::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
 		Reset();
 	}
 }
-auto App::OnMouseReleased(uint32_t button, uint32_t x, uint32_t y) -> void
+auto App2D::OnMouseReleased(uint32_t button, uint32_t x, uint32_t y) -> void
 {
 	m_draggedVertex = nullptr;
 }
 
-auto App::OnImGuiInit() const -> void
+auto App2D::OnImGuiInit() const -> void
 {
 	float scale;
 	glfwGetWindowContentScale(m_window, &scale, NULL);
@@ -152,7 +152,7 @@ auto App::OnImGuiInit() const -> void
 	ImGuiStyle &style = ImGui::GetStyle();
 	style.ScaleAllSizes(scale);
 }
-auto App::OnImGuiRender() -> void
+auto App2D::OnImGuiRender() -> void
 {
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
@@ -304,7 +304,7 @@ auto App::OnImGuiRender() -> void
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-auto App::Reset() -> void
+auto App2D::Reset() -> void
 {
 	m_iteratedCurve->Cps() = m_originalCurve->Cps();
 	m_steps = 0;
@@ -319,7 +319,7 @@ auto App::Reset() -> void
 		m_limitPt->Vtx().clear();
 }
 
-auto App::ScreenToNDC(int x, int y) -> glm::vec2
+auto App2D::ScreenToNDC(int x, int y) -> glm::vec2
 {
 	auto win = ImGui::FindWindowByName("Viewport");
 	if (!win)

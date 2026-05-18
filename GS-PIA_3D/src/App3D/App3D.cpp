@@ -7,7 +7,7 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
 
-#include "App.hpp"
+#include "App3D.hpp"
 #include "Rendering/RenderState.hpp"
 
 #include <array>
@@ -16,12 +16,12 @@
 
 namespace fs = std::filesystem;
 
-App::App(uint32_t width, uint32_t height, std::string_view title)
+App3D::App3D(uint32_t width, uint32_t height, std::string_view title)
 	: BaseApp(width, height, title)
 {
 }
 
-auto App::OnInit() -> void
+auto App3D::OnInit() -> void
 {
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
@@ -67,7 +67,7 @@ auto App::OnInit() -> void
 
 	OnImGuiInit();
 }
-auto App::OnRender() -> void
+auto App3D::OnRender() -> void
 {
 	m_framebuffer->Bind();
 
@@ -118,7 +118,7 @@ auto App::OnRender() -> void
 
 	OnImGuiRender();
 }
-auto App::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
+auto App3D::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
 {
 	if (!m_canRotate)
 		return;
@@ -126,14 +126,14 @@ auto App::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
 	m_prevArcball = ScreenToArcball(x, y);
 	m_rotating = true;
 }
-auto App::OnMouseReleased(uint32_t button, uint32_t x, uint32_t y) -> void
+auto App3D::OnMouseReleased(uint32_t button, uint32_t x, uint32_t y) -> void
 {
 	if (!m_canRotate)
 		return;
 
 	m_rotating = false;
 }
-auto App::OnMouseMotion(int px, int py) -> void
+auto App3D::OnMouseMotion(int px, int py) -> void
 {
 	if (!m_canRotate || !m_rotating)
 		return;
@@ -153,14 +153,14 @@ auto App::OnMouseMotion(int px, int py) -> void
 	}
 	m_prevArcball = currArcball;
 }
-auto App::OnDestroy() -> void
+auto App3D::OnDestroy() -> void
 {
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
 }
 
-auto App::OnImGuiInit() const -> void
+auto App3D::OnImGuiInit() const -> void
 {
 	float scale;
 	glfwGetWindowContentScale(m_window, &scale, NULL);
@@ -179,7 +179,7 @@ auto App::OnImGuiInit() const -> void
 	ImGuiStyle &style = ImGui::GetStyle();
 	style.ScaleAllSizes(scale);
 }
-auto App::OnImGuiRender() -> void
+auto App3D::OnImGuiRender() -> void
 {
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
@@ -338,7 +338,7 @@ auto App::OnImGuiRender() -> void
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-auto App::LoadModel(std::string_view path) -> std::unique_ptr<PolyMesh>
+auto App3D::LoadModel(std::string_view path) -> std::unique_ptr<PolyMesh>
 {
 	auto mesh = std::make_unique<PolyMesh>();
 
@@ -364,7 +364,7 @@ auto App::LoadModel(std::string_view path) -> std::unique_ptr<PolyMesh>
 
 	return mesh;
 }
-auto App::LoadModels() -> void
+auto App3D::LoadModels() -> void
 {
 	m_models.clear();
 	if (!fs::exists(m_modelsPath))
@@ -377,7 +377,7 @@ auto App::LoadModels() -> void
 				LoadModel(entry.path().string()));
 }
 
-auto App::Reset() -> void
+auto App3D::Reset() -> void
 {
 	m_steps = 0;
 	m_iterations = 0;
@@ -402,7 +402,7 @@ auto App::Reset() -> void
 	}
 }
 
-auto App::ScreenToNDC(int x, int y) -> glm::vec2
+auto App3D::ScreenToNDC(int x, int y) -> glm::vec2
 {
 	auto win = ImGui::FindWindowByName("Viewport");
 	if (!win)
@@ -425,7 +425,7 @@ auto App::ScreenToNDC(int x, int y) -> glm::vec2
 
 	return glm::vec2{ndcX, ndcY};
 }
-auto App::ScreenToArcball(int x, int y) -> glm::vec3
+auto App3D::ScreenToArcball(int x, int y) -> glm::vec3
 {
 	auto ndc = glm::vec3{ScreenToNDC(x, y), 0.0f};
 	float len2 = ndc.x * ndc.x + ndc.y * ndc.y;

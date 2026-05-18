@@ -16,10 +16,10 @@
 
 namespace fs = std::filesystem;
 
-class App : public BaseApp
+class App2D : public BaseApp
 {
 public:
-	App(uint32_t width, uint32_t height, std::string_view title);
+	App2D(uint32_t width, uint32_t height, std::string_view title);
 
 	auto OnInit() -> void override;
 	auto OnRender() -> void override;

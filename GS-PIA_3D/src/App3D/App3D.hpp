@@ -21,10 +21,10 @@
 
 typedef OpenMesh::PolyMesh_ArrayKernelT<> PolyMesh;
 
-class App : public BaseApp
+class App3D : public BaseApp
 {
 public:
-	App(uint32_t width, uint32_t height, std::string_view title);
+	App3D(uint32_t width, uint32_t height, std::string_view title);
 
 	auto OnInit() -> void override;
 	auto OnRender() -> void override;
