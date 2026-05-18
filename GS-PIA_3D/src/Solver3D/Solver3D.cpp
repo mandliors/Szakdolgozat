@@ -84,12 +84,11 @@ auto Solver3D::StepVertex() -> void
     auto ivh = iteratedMesh.vertex_handle(m_steps);
 
     const auto &v0 = originalMesh.point(ovh);
-    const auto &v = iteratedMesh.point(ivh);
+    auto &v = iteratedMesh.point(ivh);
     const auto limitPt = GetLimitPoint().value_or(glm::vec3{0.0f});
     const auto &l = PolyMesh::Point{limitPt.x, limitPt.y, limitPt.z};
 
-    const auto vUpdated = v + (1.0f / alpha) * (v0 - l);
-    iteratedMesh.set_point(ivh, vUpdated);
+    v += (1.0f / alpha) * (v0 - l);
 
     m_steps = (m_steps + 1) % originalMesh.n_vertices();
     if (m_steps == 0)
