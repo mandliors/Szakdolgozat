@@ -20,6 +20,8 @@ public:
 	auto Draw(const RenderState &renderState) const -> void;
 	auto Reset() -> void;
 
+	auto ShowCoarseMesh(bool show) -> void;
+
 	auto TopologyMesh() -> PolyMesh &;
 	auto RenderMesh() -> MeshRenderer &;
 

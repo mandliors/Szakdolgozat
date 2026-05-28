@@ -71,6 +71,7 @@ private:
 	std::unordered_map<std::string, std::unique_ptr<PolyMesh>> m_models;
 	int m_selectedModelIndex = -1;
 
+	bool m_showOriginalCoarseMesh = true;
 	bool m_showFaces = true;
 	bool m_showEdges = false;
 	bool m_showPoints = false;

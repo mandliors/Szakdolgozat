@@ -270,6 +270,7 @@ auto App3D::OnImGuiRender() -> void
 			if (!m_originalMesh)
 			{
 				m_originalMesh = std::make_unique<ApproximatingMesh>(*model, *m_faceShader, *m_edgeShader, *m_pointShader, s_initialColor, s_edgeColor, s_initialColor);
+				m_originalMesh->ShowCoarseMesh(m_showOriginalCoarseMesh);
 				m_iteratedMesh = std::make_unique<ApproximatingMesh>(*model, *m_faceShader, *m_edgeShader, *m_pointShader, s_iteratedColor, s_edgeColor, s_iteratedColor);
 				m_solver = std::make_unique<Solver3D>(m_originalMesh->TopologyMesh(), m_iteratedMesh->TopologyMesh());
 			}
@@ -289,6 +290,13 @@ auto App3D::OnImGuiRender() -> void
 
 	ImGui::Begin("Settings");
 
+	ImGui::Text("Original:");
+	if (ImGui::Checkbox("Show Coarse Mesh", &m_showOriginalCoarseMesh))
+	{
+		m_originalMesh->ShowCoarseMesh(m_showOriginalCoarseMesh);
+	}
+
+	ImGui::Text("Iterated:");
 	bool drawModeChanged = false;
 	drawModeChanged |= ImGui::Checkbox("Vertices", &m_showPoints);
 	ImGui::SameLine();
