@@ -40,6 +40,9 @@ auto App2D::OnInit() -> void
 	m_iteratedCurve = std::make_unique<ApproximatingCurve>(*m_shader, s_iteratedColor);
 	m_limitPt = std::make_unique<Renderable2D>(*m_shader, GL_POINTS, s_limitPtColor);
 
+	m_originalCurve->SetDrawOriginalCurve(m_drawOriginalCurve);
+	m_iteratedCurve->SetDrawOriginalCurve(false);
+
 	m_originalCurve->Cps() = std::vector<glm::vec2>{
 		glm::vec2{-0.45f, -0.3f},
 		glm::vec2{-0.15f, 0.35f},
@@ -69,17 +72,17 @@ auto App2D::OnRender() -> void
 {
 	m_framebuffer->Bind();
 
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(s_backgroundColor.r, s_backgroundColor.g, s_backgroundColor.b, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	m_shader->Bind(RenderState{});
 	m_shader->Use();
 
-	m_originalCurve->UpdateGPU();
-	m_originalCurve->Draw();
 	m_iteratedCurve->UpdateGPU();
 	m_iteratedCurve->Draw();
-
+	m_originalCurve->UpdateGPU();
+	m_originalCurve->Draw();
+	
 	glDisable(GL_DEPTH_TEST);
 	glPointSize(10.0f);
 	m_limitPt->UpdateGPU();
@@ -228,6 +231,15 @@ auto App2D::OnImGuiRender() -> void
 				m_originalCurve->SetClosed(false);
 				m_iteratedCurve->SetClosed(false);
 			}
+			Reset();
+		}
+		if (ImGui::Checkbox("Draw Original Coarse Curve", &m_drawOriginalCurve))
+		{
+			m_originalCurve->SetDrawOriginalCurve(m_drawOriginalCurve);
+		}
+		if (ImGui::SliderInt("Resolution", &m_resolution, 1, 10))
+		{
+			ApproximatingCurve::SetCurveResolution(m_resolution);
 			Reset();
 		}
 

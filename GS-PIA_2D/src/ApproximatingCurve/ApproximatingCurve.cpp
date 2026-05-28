@@ -15,6 +15,13 @@ auto ApproximatingCurve::UpdateGPU() -> void
 }
 auto ApproximatingCurve::Draw() const -> void
 {
+    if (m_drawOriginalCurve)
+    {
+        m_cps->SetType(m_closed ? GL_LINE_LOOP : GL_LINE_STRIP);
+        m_cps->Draw();
+        m_cps->SetType(GL_POINTS);
+    }
+    
     glDisable(GL_DEPTH_TEST);
     glPointSize(20.0f);
     m_cps->Draw();
@@ -31,6 +38,10 @@ auto ApproximatingCurve::SetClosed(bool closed) -> void
 {
     m_closed = closed;
     m_crv->SetType(closed ? GL_LINE_LOOP : GL_LINE_STRIP);
+}
+auto ApproximatingCurve::SetDrawOriginalCurve(bool draw) -> void
+{
+    m_drawOriginalCurve = draw;
 }
 auto ApproximatingCurve::Cps() -> std::vector<glm::vec2> &
 {
@@ -130,4 +141,9 @@ auto ApproximatingCurve::Subdivide(const std::vector<glm::vec2> &curvePts) -> st
         newCurvePts = subdivide(newCurvePts);
 
     return newCurvePts;
+}
+
+auto ApproximatingCurve::SetCurveResolution(int32_t resolution) -> void
+{
+    s_curveResolution = resolution;
 }

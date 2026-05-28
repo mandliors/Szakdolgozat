@@ -14,6 +14,7 @@ public:
     auto Reset() -> void;
 
     auto SetClosed(bool closed) -> void;
+    auto SetDrawOriginalCurve(bool draw) -> void;
     auto Cps() -> std::vector<glm::vec2> &;
 
 private:
@@ -30,4 +31,5 @@ private:
     std::unique_ptr<Renderable2D> m_crv;
 
     bool m_closed = true;
+    bool m_drawOriginalCurve = false;
 };

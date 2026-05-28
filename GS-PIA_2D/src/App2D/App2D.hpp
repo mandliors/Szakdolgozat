@@ -38,8 +38,7 @@ private:
 	auto ScreenToNDC(int x, int y) -> glm::vec2;
 
 private:
-	static constexpr auto s_curveResolution = 7;
-
+	static inline const auto s_backgroundColor = glm::vec3{0.0f, 0.0f, 0.0f};
 	static inline const auto s_initialColor = glm::vec4{0.55f, 0.3f, 1.0f, 0.8f};
 	static inline const auto s_iteratedColor = glm::vec4{0.1f, 0.8f, 0.7f, 0.8f};
 	static inline const auto s_limitPtColor = glm::vec4{0.9f, 0.9f, 0.2f, 0.8f};
@@ -52,6 +51,8 @@ private:
 	std::unique_ptr<Renderable2D> m_limitPt;
 
 	bool m_closed = true;
+	bool m_drawOriginalCurve = true;
+	int32_t m_resolution = 7;
 	int32_t m_steps;
 	int32_t m_iterations;
 
