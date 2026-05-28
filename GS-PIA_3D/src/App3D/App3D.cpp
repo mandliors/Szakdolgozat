@@ -71,7 +71,7 @@ auto App3D::OnRender() -> void
 {
 	m_framebuffer->Bind();
 
-	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+	glClearColor(s_backgroundColor.r, s_backgroundColor.g, s_backgroundColor.b, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	auto M = glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f}) * glm::mat4_cast(m_quat) * glm::scale(glm::mat4{1.0f}, glm::vec3{m_modelScale});

@@ -49,6 +49,7 @@ private:
 	static constexpr auto s_pointSize = 10;
 	static constexpr auto s_lineWidth = 5;
 
+	static inline const auto s_backgroundColor = glm::vec3{0.1f, 0.1f, 0.1f};
 	static inline const auto s_initialColor = glm::vec4{0.55f, 0.3f, 1.0f, 1.0f};
 	static inline const auto s_iteratedColor = glm::vec4{0.1f, 0.8f, 0.7f, 1.0f};
 	static inline const auto s_limitPtColor = glm::vec4{0.9f, 0.9f, 0.2f, 1.0f};
