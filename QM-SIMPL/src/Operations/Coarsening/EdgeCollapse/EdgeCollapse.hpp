@@ -2,6 +2,8 @@
 
 #include "../../Operation.hpp"
 
+#include <iostream>
+
 using PolyMesh = OpenMesh::PolyMesh_ArrayKernelT<>;
 
 class EdgeCollapse : public Operation

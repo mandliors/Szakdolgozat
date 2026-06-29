@@ -5,6 +5,8 @@
 #include "OpenMesh/Core/IO/MeshIO.hh"
 #include "OpenMesh/Core/Mesh/PolyMesh_ArrayKernelT.hh"
 
+#include <iostream>
+
 using PolyMesh = OpenMesh::PolyMesh_ArrayKernelT<>;
 
 class EdgeRotation : public Operation

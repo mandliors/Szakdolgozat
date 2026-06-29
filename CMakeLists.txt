@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.15)
 project(OnlabSzakdoga)
 
 # set(APP "GS-PIA_2D")
-set(APP "GS-PIA_3D")
-# set(APP "QM-SIMPL")
+# set(APP "GS-PIA_3D")
+set(APP "QM-SIMPL")
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

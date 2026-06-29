@@ -1,5 +1,15 @@
 set(APP "QM-SIMPL")
 
+include(FetchContent)
+
+# nanoflann
+FetchContent_Declare(
+    nanoflann
+    GIT_REPOSITORY https://github.com/jlblancoc/nanoflann.git
+    GIT_TAG master
+)
+FetchContent_Populate(nanoflann)
+
 add_executable(${APP}
     src/Main.cpp
 )
@@ -19,6 +29,7 @@ target_sources(${APP}
 target_include_directories(${APP}
     PRIVATE
         src
+        ${nanoflann_SOURCE_DIR}/include
 )
 
 target_link_libraries(${APP}

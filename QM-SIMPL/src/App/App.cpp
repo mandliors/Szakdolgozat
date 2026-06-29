@@ -12,22 +12,34 @@
 
 #include <array>
 #include <ranges>
+#include <iostream>
 
 namespace fs = std::filesystem;
 
 enum class OpType
 {
+	Project,
 	EdgeRotate,
 	VertexRotate,
 	DiagonalCollapse,
 	EdgeCollapse
 };
-static OpType op = OpType::EdgeRotate;
+static OpType op = OpType::Project;
 
 static auto IntersectRayLineSegment(const glm::vec3 &rayOrg, const glm::vec3 &rayDir, const glm::vec3 &p0, const glm::vec3 &p1, float &outDist, float &outDepth) -> bool;
 static auto IntersectRayTriangle(const glm::vec3 &rayOrg, const glm::vec3 &rayDir, const glm::vec3 &p0, const glm::vec3 &p1, const glm::vec3 &p2, float &outDist) -> bool;
 static auto PointToVec3(const OpenMesh::Vec3f &v) -> glm::vec3;
 static OpenMesh::HalfedgeHandle GetHalfedgeFromFaceAndVertex(const PolyMesh &mesh, OpenMesh::FaceHandle fh, OpenMesh::VertexHandle vh);
+
+static auto ProjectToTriangle(const OpenMesh::Vec3f &p, const OpenMesh::Vec3f &q1, const OpenMesh::Vec3f &q2, const OpenMesh::Vec3f &q3) -> OpenMesh::Vec3f;
+static auto ProjectToQuad(const OpenMesh::Vec3f &p, const OpenMesh::Vec3f &q1, const OpenMesh::Vec3f &q2, const OpenMesh::Vec3f &q3, const OpenMesh::Vec3f &q4) -> OpenMesh::Vec3f;
+static auto ProjectToFace(const PolyMesh &mesh, OpenMesh::FaceHandle fh, const OpenMesh::Vec3f &p) -> OpenMesh::Vec3f;
+static auto DistanceSqrToFace(const PolyMesh &mesh, OpenMesh::FaceHandle fh, const OpenMesh::Vec3f &p) -> float;
+
+static auto BuildCloud(const PolyMesh &mesh) -> std::unique_ptr<FaceCentroidCloud>;
+static auto ClosestFace(
+	const PolyMesh &mesh, FaceCentroidCloud &cloud, const KDTree &index,
+	const OpenMesh::Vec3f &p, size_t candidateCount = 10) -> OpenMesh::FaceHandle;
 
 template <typename SpecificHandle>
 SpecificHandle HandleCast(OpenMesh::BaseHandle h) { return SpecificHandle(h.idx()); }
@@ -76,7 +88,25 @@ auto App::OnInit() -> void
 
 	LoadModels();
 
+	/*DEBUG START*/
+	m_originalMesh = *m_models.at("subdiv-cube.obj");
+	m_topologyMesh = *m_models.at("subdiv-cube_modified.obj");
+
+	m_renderMesh = std::make_unique<MeshRenderer>(m_topologyMesh, *m_faceShader, *m_edgeShader, *m_pointShader, s_initialColor, s_edgeColor, s_initialColor);
+	m_renderMesh->SetDrawMode(true, true, false);
+	m_simplifier = std::make_unique<MeshSimplifier>(m_topologyMesh);
+
+	m_faceCentroidCloud = BuildCloud(m_originalMesh);
+	m_centroidTree = std::make_unique<KDTree>(3, *m_faceCentroidCloud, nanoflann::KDTreeSingleIndexAdaptorParams(10));
+	m_centroidTree->buildIndex();
+	/*DEBUG END*/
+
 	Reset();
+
+	/*DEBUG START*/
+	glm::quat delta = glm::angleAxis(glm::radians(25.0f), glm::vec3{1.0f, 0.0, 0.0f});
+	m_quat = glm::normalize(delta * m_quat);
+	/*DEBUG END*/
 
 	// ImGui
 	IMGUI_CHECKVERSION();
@@ -141,7 +171,9 @@ auto App::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
 
 	if (button == GLFW_MOUSE_BUTTON_LEFT && m_isHovering)
 	{
-		if (op == OpType::EdgeRotate)
+		if (op == OpType::Project)
+			Project(m_originalMesh, m_topologyMesh.point(HandleCast<OpenMesh::VertexHandle>(m_hover.first)));
+		else if (op == OpType::EdgeRotate)
 			EdgeRotate(m_topologyMesh, HandleCast<OpenMesh::EdgeHandle>(m_hover.first));
 		else if (op == OpType::VertexRotate)
 			VertexRotate(m_topologyMesh, HandleCast<OpenMesh::VertexHandle>(m_hover.first));
@@ -209,7 +241,7 @@ auto App::OnMouseMotion(int px, int py) -> void
 				lastBestEdge = OpenMesh::EdgeHandle{-1};
 			}
 		}
-		else if (op == OpType::VertexRotate)
+		else if (op == OpType::Project || op == OpType::VertexRotate)
 		{
 			static OpenMesh::VertexHandle lastBestVertex;
 
@@ -418,10 +450,14 @@ auto App::OnImGuiRender() -> void
 		if (ImGui::IsItemClicked())
 		{
 			m_selectedModelIndex = i;
+			m_originalMesh = *model;
 			m_topologyMesh = *model;
 			m_renderMesh = std::make_unique<MeshRenderer>(m_topologyMesh, *m_faceShader, *m_edgeShader, *m_pointShader, s_initialColor, s_edgeColor, s_initialColor);
 			m_renderMesh->SetDrawMode(true, true, false);
 			m_simplifier = std::make_unique<MeshSimplifier>(m_topologyMesh);
+			m_faceCentroidCloud = BuildCloud(m_originalMesh);
+			m_centroidTree = std::make_unique<KDTree>(3, *m_faceCentroidCloud, nanoflann::KDTreeSingleIndexAdaptorParams(10));
+			m_centroidTree->buildIndex();
 
 			Reset();
 		}
@@ -444,7 +480,7 @@ auto App::OnImGuiRender() -> void
 
 	ImGui::SliderFloat("Scale", &m_modelScale, 0.1f, 4.0f);
 
-	static std::vector<const char *> items{"Edge Rotate", "Vertex Rotate", "Diagonal Collapse", "Edge Collapse"};
+	static std::vector<const char *> items{"Project", "Edge Rotate", "Vertex Rotate", "Diagonal Collapse", "Edge Collapse"};
 	ImGui::Combo("Operation", (int *)&op, items.data(), (int)items.size());
 
 	if (ImGui::Button("Reset"))
@@ -549,8 +585,8 @@ auto App::GetMu(PolyMesh &mesh) -> float
 		auto c = mesh.point(*(++fv_it));
 		auto d = mesh.point(*(++fv_it));
 
-		totalArea += 0.5f * ((b - a).cross(c - a)).length();
-		totalArea += 0.5f * ((d - c).cross(a - c)).length();
+		totalArea += 0.5f * cross(b - a, c - a).length();
+		totalArea += 0.5f * cross(d - c, a - c).length();
 
 		faceCount++;
 	}
@@ -589,6 +625,13 @@ auto App::GetLengthVariance(PolyMesh &mesh) -> float
 	}
 
 	return totalDiff;
+}
+
+auto App::Project(PolyMesh &mesh, OpenMesh::Vec3f &p) const -> void
+{
+	OpenMesh::FaceHandle closestFace = ClosestFace(m_originalMesh, *m_faceCentroidCloud, *m_centroidTree, p);
+	if (closestFace.is_valid())
+		p = ProjectToFace(mesh, closestFace, p);
 }
 
 auto App::EdgeRotate(PolyMesh &mesh, OpenMesh::EdgeHandle eh) const -> void
@@ -971,4 +1014,197 @@ static OpenMesh::HalfedgeHandle GetHalfedgeFromFaceAndVertex(const PolyMesh &mes
 			return heh;
 
 	return OpenMesh::HalfedgeHandle{-1};
+}
+
+static auto ProjectToTriangle(const OpenMesh::Vec3f &p, const OpenMesh::Vec3f &q1, const OpenMesh::Vec3f &q2, const OpenMesh::Vec3f &q3) -> OpenMesh::Vec3f
+{
+	// Peter Salvi's implementation of the algorithm for projecting a point onto a triangle (with some minor modifications)
+	// As in Schneider, Eberly: Geometric Tools for Computer Graphics, Morgan Kaufmann, 2003.
+	// Section 10.3.2, pp. 376-382 (with Peter Salvi's corrections)
+
+	const auto &P = p, &B = q1;
+	const auto E0 = q2 - q1, E1 = q3 - q1, D = B - P;
+	const auto a = E0 | E0, b = E0 | E1, c = E1 | E1, d = E0 | D, e = E1 | D;
+	auto det = a * c - b * b, s = b * e - c * d, t = b * d - a * e;
+
+	if (s + t <= det)
+	{
+		if (s < 0)
+		{
+			if (t < 0)
+			{
+				// Region 4
+				if (e < 0)
+				{
+					s = 0.0;
+					t = (-e >= c ? 1.0 : -e / c);
+				}
+				else if (d < 0)
+				{
+					t = 0.0;
+					s = (-d >= a ? 1.0 : -d / a);
+				}
+				else
+				{
+					s = 0.0;
+					t = 0.0;
+				}
+			}
+			else
+			{
+				// Region 3
+				s = 0.0;
+				t = (e >= 0.0 ? 0.0 : (-e >= c ? 1.0 : -e / c));
+			}
+		}
+		else if (t < 0)
+		{
+			// Region 5
+			t = 0.0;
+			s = (d >= 0.0 ? 0.0 : (-d >= a ? 1.0 : -d / a));
+		}
+		else
+		{
+			// Region 0
+			double invDet = 1.0 / det;
+			s *= invDet;
+			t *= invDet;
+		}
+	}
+	else
+	{
+		if (s < 0)
+		{
+			// Region 2
+			double tmp0 = b + d, tmp1 = c + e;
+			if (tmp1 > tmp0)
+			{
+				double numer = tmp1 - tmp0;
+				double denom = a - 2 * b + c;
+				s = (numer >= denom ? 1.0 : numer / denom);
+				t = 1.0 - s;
+			}
+			else
+			{
+				s = 0.0;
+				t = (tmp1 <= 0.0 ? 1.0 : (e >= 0.0 ? 0.0 : -e / c));
+			}
+		}
+		else if (t < 0)
+		{
+			// Region 6
+			double tmp0 = b + e, tmp1 = a + d;
+			if (tmp1 > tmp0)
+			{
+				double numer = tmp1 - tmp0;
+				double denom = c - 2 * b + a;
+				t = (numer >= denom ? 1.0 : numer / denom);
+				s = 1.0 - t;
+			}
+			else
+			{
+				t = 0.0;
+				s = (tmp1 <= 0.0 ? 1.0 : (d >= 0.0 ? 0.0 : -d / a));
+			}
+		}
+		else
+		{
+			// Region 1
+			double numer = c + e - b - d;
+			if (numer <= 0)
+			{
+				s = 0;
+			}
+			else
+			{
+				double denom = a - 2 * b + c;
+				s = (numer >= denom ? 1.0 : numer / denom);
+			}
+			t = 1.0 - s;
+		}
+	}
+	return B + E0 * s + E1 * t;
+}
+static auto ProjectToQuad(const OpenMesh::Vec3f &p, const OpenMesh::Vec3f &q1, const OpenMesh::Vec3f &q2, const OpenMesh::Vec3f &q3, const OpenMesh::Vec3f &q4) -> OpenMesh::Vec3f
+{
+	const auto p1 = ProjectToTriangle(p, q1, q2, q3);
+	const auto p2 = ProjectToTriangle(p, q1, q3, q4);
+	const auto d1 = (p1 - p).sqrnorm();
+	const auto d2 = (p2 - p).sqrnorm();
+
+	return (d1 < d2) ? p1 : p2;
+}
+static auto ProjectToFace(const PolyMesh &mesh, OpenMesh::FaceHandle fh, const OpenMesh::Vec3f &p) -> OpenMesh::Vec3f
+{
+	auto vtxCount = std::distance(mesh.fv_range(fh).begin(), mesh.fv_range(fh).end());
+	if (vtxCount != 4)
+		return OpenMesh::Vec3f{0.0f, 0.0f, 0.0f};
+
+	auto fv_it = mesh.cfv_iter(fh);
+	auto q1 = mesh.point(*fv_it);
+	auto q2 = mesh.point(*(++fv_it));
+	auto q3 = mesh.point(*(++fv_it));
+	auto q4 = mesh.point(*(++fv_it));
+
+	return ProjectToQuad(p, q1, q2, q3, q4);
+}
+static auto DistanceSqrToFace(const PolyMesh &mesh, OpenMesh::FaceHandle fh, const OpenMesh::Vec3f &p) -> float
+{
+	auto vtxCount = std::distance(mesh.fv_range(fh).begin(), mesh.fv_range(fh).end());
+	if (vtxCount != 4)
+		return -1.0f;
+
+	auto fv_it = mesh.cfv_iter(fh);
+	auto q1 = mesh.point(*fv_it);
+	auto q2 = mesh.point(*(++fv_it));
+	auto q3 = mesh.point(*(++fv_it));
+	auto q4 = mesh.point(*(++fv_it));
+
+	auto p1 = ProjectToTriangle(p, q1, q2, q3);
+	auto p2 = ProjectToTriangle(p, q1, q3, q4);
+	auto d1 = (p1 - p).sqrnorm();
+	auto d2 = (p2 - p).sqrnorm();
+
+	return (d1 < d2) ? d1 : d2;
+}
+
+static auto BuildCloud(const PolyMesh &mesh) -> std::unique_ptr<FaceCentroidCloud>
+{
+	auto cloud = std::make_unique<FaceCentroidCloud>();
+	for (auto fh : mesh.faces())
+	{
+		auto c = mesh.calc_face_centroid(fh);
+		cloud->faces.emplace_back(c, fh);
+	}
+
+	return cloud;
+}
+static auto ClosestFace(
+	const PolyMesh &mesh, FaceCentroidCloud &cloud, const KDTree &index,
+	const OpenMesh::Vec3f &p, size_t candidateCount) -> OpenMesh::FaceHandle
+{
+	double query[3] = {p[0], p[1], p[2]};
+
+	// fetch n nearest centroids
+	std::vector<size_t> idxs(candidateCount);
+	std::vector<double> dists(candidateCount);
+	nanoflann::KNNResultSet<double> resultSet(candidateCount);
+
+	resultSet.init(idxs.data(), dists.data());
+	index.findNeighbors(resultSet, query, nanoflann::SearchParameters());
+
+	// among candidates, find the one with minimum exact point-to-quad distance
+	OpenMesh::FaceHandle best;
+	double bestDist = std::numeric_limits<double>::max();
+	for (size_t i = 0; i < candidateCount; i++)
+	{
+		double d = DistanceSqrToFace(mesh, cloud.faces[idxs[i]].second, p);
+		if (d < bestDist)
+		{
+			bestDist = d;
+			best = cloud.faces[idxs[i]].second;
+		}
+	}
+
+	return best;
 }

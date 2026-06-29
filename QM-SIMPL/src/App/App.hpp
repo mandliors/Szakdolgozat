@@ -4,6 +4,7 @@
 #include "glm/gtc/quaternion.hpp"
 #include "OpenMesh/Core/IO/MeshIO.hh"
 #include "OpenMesh/Core/Mesh/PolyMesh_ArrayKernelT.hh"
+#include "nanoflann.hpp"
 
 #include "BaseApp/BaseApp.hpp"
 #include "Camera/Camera.hpp"
@@ -22,6 +23,25 @@
 namespace fs = std::filesystem;
 
 using PolyMesh = OpenMesh::PolyMesh_ArrayKernelT<>;
+
+struct FaceCentroidCloud
+{
+	auto kdtree_get_point_count() const -> size_t { return faces.size(); }
+	auto kdtree_get_pt(const size_t idx, const size_t dim) const -> float
+	{
+		return faces[idx].first[dim];
+	}
+
+	template <class BBOX>
+	auto kdtree_get_bbox(BBOX &bbox) const -> bool { return false; }
+
+	std::vector<std::pair<OpenMesh::Vec3f, OpenMesh::FaceHandle>> faces;
+};
+
+using KDTree = nanoflann::KDTreeSingleIndexAdaptor<
+	nanoflann::L2_Simple_Adaptor<double, FaceCentroidCloud>,
+	FaceCentroidCloud,
+	3>;
 
 class App : public BaseApp
 {
@@ -49,6 +69,7 @@ private:
 	auto GetMu(PolyMesh &mesh) -> float;
 	auto GetLengthVariance(PolyMesh &mesh) -> float;
 
+	auto Project(PolyMesh &mesh, OpenMesh::Vec3f &p) const -> void;
 	auto EdgeRotate(PolyMesh &mesh, OpenMesh::EdgeHandle eh) const -> void;
 	auto VertexRotate(PolyMesh &mesh, OpenMesh::VertexHandle vh) const -> void;
 	auto DiagonalCollapse(PolyMesh &mesh, OpenMesh::HalfedgeHandle heh) const -> void;
@@ -75,7 +96,6 @@ private:
 	static constexpr auto s_lineWidth = 5;
 
 	static inline const auto s_initialColor = glm::vec4{0.55f, 0.3f, 1.0f, 1.0f};
-	static inline const auto s_iteratedColor = glm::vec4{0.1f, 0.8f, 0.7f, 1.0f};
 	static inline const auto s_edgeColor = glm::vec4{0.0f, 0.0f, 0.0f, 1.0f};
 	static inline const auto s_selectionColor = glm::vec4{0.96f, 0.67f, 0.26f, 1.0f};
 	static inline const auto s_lightPos = glm::vec4{2.0f, 1.0f, 2.0f, 0.0f};
@@ -86,7 +106,10 @@ private:
 	std::unique_ptr<PointShader> m_pointShader;
 	std::unique_ptr<Camera> m_camera;
 
+	PolyMesh m_originalMesh;
 	PolyMesh m_topologyMesh;
+	std::unique_ptr<FaceCentroidCloud> m_faceCentroidCloud;
+	std::unique_ptr<KDTree> m_centroidTree;
 	std::unique_ptr<MeshRenderer> m_renderMesh;
 	std::unique_ptr<MeshSimplifier> m_simplifier;
 
