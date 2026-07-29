@@ -5,14 +5,19 @@
 
 #include <unordered_set>
 
-enum class OperationType { OPTIMIZING = 0, COARSENING };
+enum class OperationType
+{
+	OPTIMIZING = 0,
+	COARSENING
+};
 
 using PolyMesh = OpenMesh::PolyMesh_ArrayKernelT<>;
 
 struct MeshHandleHasher
 {
 	template <typename Handle>
-	size_t operator()(const Handle& h) const {
+	size_t operator()(const Handle &h) const
+	{
 		return static_cast<size_t>(h.idx());
 	}
 };
@@ -33,12 +38,12 @@ public:
 		std::unordered_set<PolyMesh::EdgeHandle, MeshHandleHasher>,
 		std::unordered_set<PolyMesh::HalfedgeHandle, MeshHandleHasher>> = 0;
 
-	auto operator>(const Operation& other) const -> bool
+	auto operator>(const Operation &other) const -> bool
 	{
 		if (this->GetType() != other.GetType())
 			return this->GetType() == OperationType::OPTIMIZING;
 
-		return this->GetTimestamp() > other.GetTimestamp();
+		return this->GetProfitability() > other.GetProfitability();
 	}
 
 	virtual auto Print() const -> void = 0;

@@ -12,7 +12,7 @@ using PolyMesh = OpenMesh::PolyMesh_ArrayKernelT<>;
 class VertexRotation : public Operation
 {
 public:
-	VertexRotation(PolyMesh& mesh, OpenMesh::VertexHandle vh, int32_t timestamp);
+	VertexRotation(PolyMesh &mesh, OpenMesh::VertexHandle vh, int32_t timestamp);
 
 	auto GetType() const -> OperationType override { return OperationType::OPTIMIZING; }
 
@@ -25,13 +25,13 @@ public:
 	auto Print() const -> void override
 	{
 		std::cout << "   VertexRotation";
-		std::cout << " with profitability" << GetProfitability();
+		std::cout << " with profitability " << GetProfitability();
 		std::cout << " and timestamp " << GetTimestamp();
 		std::cout << std::endl;
 	}
 
 private:
-	PolyMesh& m_mesh;
+	PolyMesh &m_mesh;
 	OpenMesh::VertexHandle m_vh;
 	OpenMesh::VPropHandleT<int32_t> m_timestampHandle;
 };

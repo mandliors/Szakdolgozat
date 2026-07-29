@@ -59,7 +59,11 @@ auto MeshSimplifier::Simplify(int32_t steps) -> void
 				AddDiagonalOperations(heh, ++m_mesh.property(m_diagonalTimestamp, heh));
 
 			if (op->GetType() == OperationType::COARSENING)
-				break;
+			{
+				// perform local (tangent-space) smoothing on the affected vertices
+				for (const auto vh : vhs)
+					break;
+			}
 
 			op = m_operationHeap.Pop();
 		}

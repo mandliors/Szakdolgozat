@@ -12,7 +12,7 @@ using PolyMesh = OpenMesh::PolyMesh_ArrayKernelT<>;
 class EdgeRotation : public Operation
 {
 public:
-	EdgeRotation(PolyMesh& mesh, OpenMesh::HalfedgeHandle heh, bool ccw, int32_t timestamp);
+	EdgeRotation(PolyMesh &mesh, OpenMesh::HalfedgeHandle heh, bool ccw, int32_t timestamp);
 
 	auto GetType() const -> OperationType override { return OperationType::OPTIMIZING; }
 
@@ -25,13 +25,13 @@ public:
 	auto Print() const -> void override
 	{
 		std::cout << "   EdgeRotation";
-		std::cout << " with profitability" << GetProfitability();
+		std::cout << " with profitability " << GetProfitability();
 		std::cout << " and timestamp " << GetTimestamp();
 		std::cout << std::endl;
 	}
 
 private:
-	PolyMesh& m_mesh;
+	PolyMesh &m_mesh;
 	OpenMesh::HalfedgeHandle m_heh;
 	bool m_ccw;
 	OpenMesh::EPropHandleT<int32_t> m_timestampHandle;
