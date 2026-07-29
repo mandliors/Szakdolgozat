@@ -1,0 +1,6 @@
+{
+    "cmake.debugConfig": {
+        "type": "lldb",
+        "cwd": "${command:cmake.launchTargetDirectory}"
+    }
+}
