@@ -33,13 +33,29 @@ auto VertexRotation::Execute() -> std::tuple<
 		neighbors.push_back(m_mesh.to_vertex_handle(*voh_it));
 	}
 
+	auto n = neighbors.size();
+
+	// precheck: verify every prospective new edge is safe to introduce
+	for (size_t i = 0; i < n; i += 2)
+	{
+		auto a = neighbors[(i + 2) % n];
+		auto b = neighbors[(i + 1) % n];
+		auto c = neighbors[i];
+
+		if (m_mesh.find_halfedge(a, b).is_valid() || m_mesh.find_halfedge(b, c).is_valid())
+			return {{}, {}, {}};
+	}
+
 	std::vector<PolyMesh::FaceHandle> oldFaces;
 	for (auto fh : m_mesh.vf_range(m_vh))
 		oldFaces.push_back(fh);
 	for (auto fh : oldFaces)
 		m_mesh.delete_face(fh, false);
 
-	auto n = neighbors.size();
+	std::vector<PolyMesh::FaceHandle> newFaces;
+	newFaces.reserve(n / 2);
+
+	bool failed = false;
 	for (size_t i = 0; i < n; i += 2)
 	{
 		std::vector<PolyMesh::VertexHandle> nf =
@@ -48,32 +64,67 @@ auto VertexRotation::Execute() -> std::tuple<
 				neighbors[(i + 2) % n],
 				neighbors[(i + 1) % n],
 				neighbors[i],
-			};
-		m_mesh.add_face(nf);
+		};
+		auto fh = m_mesh.add_face(nf);
+		if (!fh.is_valid())
+		{
+			failed = true;
+			break;
+		}
+		newFaces.push_back(fh);
+	}
+
+	if (failed)
+	{
+		for (auto f : newFaces)
+			m_mesh.delete_face(f, false);
+
+		bool restoreFailed = false;
+		std::vector<PolyMesh::FaceHandle> restored;
+		for (size_t i = 0; i < n; i += 2)
+		{
+			auto fh = m_mesh.add_face({m_vh, neighbors[i], neighbors[i + 1], neighbors[(i + 2) % n]});
+			if (!fh.is_valid())
+			{
+				restoreFailed = true;
+				break;
+			}
+			restored.push_back(fh);
+		}
+
+		if (restoreFailed)
+		{
+			// We cannot cleanly recover — the mesh is now in a torn state
+			// (some of m_vh's original faces are back, some aren't).
+			assert(false && "VertexRotation rollback failed to restore original topology");
+		}
+
+		return {{}, {}, {}};
 	}
 
 	std::unordered_set<OpenMesh::VertexHandle, MeshHandleHasher> affectedVhs{m_vh};
 	std::unordered_set<OpenMesh::EdgeHandle, MeshHandleHasher> affectedEhs;
 	std::unordered_set<OpenMesh::HalfedgeHandle, MeshHandleHasher> affectedDhs;
 
+	// gather all affected vertices
 	for (auto voh_it = m_mesh.voh_iter(m_vh); voh_it.is_valid(); ++voh_it)
 	{
-		auto heh0 = *voh_it;
+		auto heh0 = m_mesh.next_halfedge_handle(*voh_it);
 		auto heh1 = m_mesh.next_halfedge_handle(heh0);
-		auto heh2 = m_mesh.next_halfedge_handle(heh1);
-		auto heh3 = m_mesh.next_halfedge_handle(heh2);
+		auto vh0 = m_mesh.to_vertex_handle(heh0);
+		auto vh1 = m_mesh.to_vertex_handle(heh1);
 
-		affectedVhs.insert(m_mesh.to_vertex_handle(heh0));
-		affectedVhs.insert(m_mesh.to_vertex_handle(heh1));
+		affectedVhs.insert(vh0);
+		affectedVhs.insert(vh1);
+	}
 
-		affectedEhs.insert(m_mesh.edge_handle(heh0));
-		affectedEhs.insert(m_mesh.edge_handle(heh1));
-		affectedEhs.insert(m_mesh.edge_handle(heh2));
-
-		affectedDhs.insert(heh0);
-		affectedDhs.insert(heh1);
-		affectedDhs.insert(heh2);
-		affectedDhs.insert(heh3);
+	// gather all affected edges and diagonals
+	for (auto vh : affectedVhs)
+	{
+		for (auto ve_iter = m_mesh.ve_iter(vh); ve_iter.is_valid(); ++ve_iter)
+			affectedEhs.insert(*ve_iter);
+		for (auto voh_iter = m_mesh.voh_iter(vh); voh_iter.is_valid(); ++voh_iter)
+			affectedDhs.insert(*voh_iter);
 	}
 
 	return {affectedVhs, affectedEhs, affectedDhs};
