@@ -52,6 +52,8 @@ auto MeshSimplifier::TopologyMesh() -> PolyMesh &
 
 auto MeshSimplifier::Simplify(int32_t steps) -> void
 {
+	std::unordered_set<PolyMesh::VertexHandle, MeshHandleHasher> vhsToProject;
+
 	for (int32_t i = 0; i < steps; i++)
 	{
 		auto op = m_operationHeap.Pop();
@@ -64,34 +66,17 @@ auto MeshSimplifier::Simplify(int32_t steps) -> void
 				continue;
 			}
 
-			bool coarsening = op->GetType() == OperationType::COARSENING;
-
 			// throw away all optimizing operations with negative profitability
-			while (!coarsening && op->GetProfitability() < std::numeric_limits<float>::epsilon())
+			while (op->GetType() != OperationType::COARSENING && op->GetProfitability() < std::numeric_limits<float>::epsilon())
 			{
 				op = m_operationHeap.Pop();
 				if (!op)
 					return;
-
-				coarsening = op->GetType() == OperationType::COARSENING;
 			}
 
 			op->Print();
 
 			auto [vhs, ehs, dhs] = op->Execute();
-			if (coarsening)
-			{
-				auto vhsCloned = vhs;
-
-				// perform local (tangent-space) smoothing on the affected vertices
-				for (const auto vh : vhsCloned)
-				{
-					auto [vhs_, ehs_, dhs_] = ProjectVertex(vh);
-					vhs.insert(vhs_.begin(), vhs_.end());
-					ehs.insert(ehs_.begin(), ehs_.end());
-					dhs.insert(dhs_.begin(), dhs_.end());
-				}
-			}
 
 			// add new operations for the affected vertices, edges and diagonals
 			for (const auto vh : vhs)
@@ -101,12 +86,36 @@ auto MeshSimplifier::Simplify(int32_t steps) -> void
 			for (const auto heh : dhs)
 				AddDiagonalOperations(heh, ++m_mesh.property(m_diagonalTimestamp, heh));
 
-			if (coarsening)
+			if (op->GetType() == OperationType::COARSENING)
+			{
+				vhsToProject = vhs;
 				break;
+			}
 
 			op = m_operationHeap.Pop();
 		}
 	}
+
+	// perform local (tangent-space) smoothing on the affected vertices
+	std::unordered_set<PolyMesh::VertexHandle, MeshHandleHasher> vhs = vhsToProject;
+	std::unordered_set<PolyMesh::EdgeHandle, MeshHandleHasher> ehs;
+	std::unordered_set<PolyMesh::HalfedgeHandle, MeshHandleHasher> dhs;
+
+	for (const auto vh : vhsToProject)
+	{
+		auto [vhs_, ehs_, dhs_] = ProjectVertex(vh);
+		vhs.insert(vhs_.begin(), vhs_.end());
+		ehs.insert(ehs_.begin(), ehs_.end());
+		dhs.insert(dhs_.begin(), dhs_.end());
+	}
+
+	// add new operations for the affected vertices, edges and diagonals
+	for (const auto vh : vhs)
+		AddVertexOperations(vh, ++m_mesh.property(m_vertexTimestamp, vh));
+	for (const auto eh : ehs)
+		AddEdgeOperations(eh, ++m_mesh.property(m_edgeTimestamp, eh));
+	for (const auto heh : dhs)
+		AddDiagonalOperations(heh, ++m_mesh.property(m_diagonalTimestamp, heh));
 }
 
 // A trick to see inside a priority_queue without destroying it
