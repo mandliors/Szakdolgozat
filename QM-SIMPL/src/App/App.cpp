@@ -338,22 +338,12 @@ auto App::OnDestroy() -> void
 
 auto App::OnImGuiInit() const -> void
 {
-	float scale;
-	glfwGetWindowContentScale(m_window, &scale, NULL);
-
 	ImGuiIO &io = ImGui::GetIO();
-	io.Fonts->Clear();
 
-	ImFontConfig cfg;
-	cfg.SizePixels = 13.0f * scale;
+	io.ConfigDpiScaleFonts = false;
+	io.ConfigDpiScaleViewports = false;
 
-	io.Fonts->AddFontDefault(&cfg);
-
-	ImGui::GetStyle().ScaleAllSizes(scale);
-	io.FontGlobalScale = 1.0f;
-
-	ImGuiStyle &style = ImGui::GetStyle();
-	style.ScaleAllSizes(scale);
+	ApplyUIScale(m_uiScale);
 }
 auto App::OnImGuiRender() -> void
 {
@@ -471,6 +461,9 @@ auto App::OnImGuiRender() -> void
 	static std::vector<const char *> items{"Project", "Edge Rotate", "Vertex Rotate", "Diagonal Collapse", "Edge Collapse"};
 	ImGui::Combo("Operation", (int *)&op, items.data(), (int)items.size());
 
+	if (ImGui::SliderFloat("UI Scale", &m_uiScale, 0.5f, 4.0f))
+		ApplyUIScale(m_uiScale);
+
 	if (ImGui::Button("Reset"))
 		Reset();
 
@@ -549,16 +542,24 @@ auto App::Reset() -> void
 
 	if (m_renderMesh)
 	{
-		m_renderMesh = std::make_unique<MeshRenderer>(m_topologyMesh, *m_faceShader, *m_edgeShader, *m_pointShader, s_initialColor, s_edgeColor, s_initialColor);
-		m_renderMesh->SetDrawMode(true, true, false);
-		// TODO: remove this line and uncomment the next line when MeshSimplifier is implemented properly
-		// m_simplifier = std::make_unique<MeshSimplifier>(m_topologyMesh, m_topologyMesh);
+		m_simplifier = std::make_unique<MeshSimplifier>(m_topologyMesh, m_topologyMesh);
 
 		m_stats.push_back(std::format("vtx: {}", m_topologyMesh.n_vertices()));
 		m_stats.push_back(std::format("faces: {}", m_topologyMesh.n_faces()));
 		m_stats.push_back(std::format("mu: {}", GetMu(m_topologyMesh)));
 		m_stats.push_back(std::format("var: {}", GetLengthVariance(m_topologyMesh)));
 	}
+}
+auto App::ApplyUIScale(float scale) const -> void
+{
+	ImGuiStyle &style = ImGui::GetStyle();
+	style.FontScaleDpi = scale;
+
+	static ImGuiStyle baseStyle = style;
+	ImGuiStyle scaledStyle = baseStyle;
+	scaledStyle.FontScaleDpi = scale;
+	scaledStyle.ScaleAllSizes(scale);
+	style = scaledStyle;
 }
 
 auto App::GetMu(PolyMesh &mesh) -> float

@@ -45,6 +45,7 @@ private:
 	auto LoadModels() -> void;
 
 	auto Reset() -> void;
+	auto ApplyUIScale(float scale) const -> void;
 
 	// paper's algorithm implementations
 	auto GetMu(PolyMesh &mesh) -> float;
@@ -105,6 +106,7 @@ private:
 	bool m_showEdges = true;
 	bool m_showPoints = false;
 	float m_modelScale = 1.0f;
+	float m_uiScale = 2.0f;
 
 	std::vector<std::string> m_stats;
 
