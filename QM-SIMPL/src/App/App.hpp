@@ -13,8 +13,9 @@
 #include "MeshRenderer/Shaders/PointShader.hpp"
 #include "MeshRenderer/MeshRenderer.hpp"
 #include "Framebuffer/Framebuffer.hpp"
-#include "../MeshSimplifier/MeshSimplifier.hpp"
-#include "../Renderable3D.hpp"
+#include "MeshConverter/MeshConverter.hpp"
+#include "MeshSimplifier/MeshSimplifier.hpp"
+#include "Renderable3D.hpp"
 
 #include <vector>
 #include <memory>
@@ -89,6 +90,7 @@ private:
 
 	PolyMesh m_topologyMesh;
 	std::unique_ptr<MeshRenderer> m_renderMesh;
+	std::unique_ptr<MeshConverter> m_converter;
 	std::unique_ptr<MeshSimplifier> m_simplifier;
 
 	Material m_material;

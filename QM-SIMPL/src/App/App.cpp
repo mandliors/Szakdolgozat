@@ -88,6 +88,7 @@ auto App::OnInit() -> void
 
 	m_renderMesh = std::make_unique<MeshRenderer>(m_topologyMesh, *m_faceShader, *m_edgeShader, *m_pointShader, s_initialColor, s_edgeColor, s_initialColor);
 	m_renderMesh->SetDrawMode(true, true, false);
+	m_converter = std::make_unique<MeshConverter>(m_topologyMesh);
 	m_simplifier = std::make_unique<MeshSimplifier>(
 		*m_models.at("subdiv-cube.obj"),
 		m_topologyMesh);
@@ -435,6 +436,7 @@ auto App::OnImGuiRender() -> void
 			m_topologyMesh = *model;
 			m_renderMesh = std::make_unique<MeshRenderer>(m_topologyMesh, *m_faceShader, *m_edgeShader, *m_pointShader, s_initialColor, s_edgeColor, s_initialColor);
 			m_renderMesh->SetDrawMode(true, true, false);
+			m_converter = std::make_unique<MeshConverter>(m_topologyMesh);
 			m_simplifier = std::make_unique<MeshSimplifier>(m_topologyMesh, m_topologyMesh);
 
 			Reset();
@@ -456,7 +458,7 @@ auto App::OnImGuiRender() -> void
 	if (drawModeChanged && m_renderMesh)
 		m_renderMesh->SetDrawMode(m_showFaces, m_showEdges, m_showPoints);
 
-	ImGui::SliderFloat("Scale", &m_modelScale, 0.1f, 4.0f);
+	ImGui::SliderFloat("Scale", &m_modelScale, 0.1f, 16.0f);
 
 	static std::vector<const char *> items{"Project", "Edge Rotate", "Vertex Rotate", "Diagonal Collapse", "Edge Collapse"};
 	ImGui::Combo("Operation", (int *)&op, items.data(), (int)items.size());
@@ -472,6 +474,14 @@ auto App::OnImGuiRender() -> void
 	if (ImGui::Button("Simplify"))
 	{
 		m_simplifier->Simplify(simplifySteps);
+		FinalizeOperation(m_topologyMesh);
+
+		m_renderMesh->UpdateGPU();
+	}
+
+	if (ImGui::Button("Convert"))
+	{
+		m_converter->Execute();
 		FinalizeOperation(m_topologyMesh);
 
 		m_renderMesh->UpdateGPU();
@@ -542,6 +552,7 @@ auto App::Reset() -> void
 
 	if (m_renderMesh)
 	{
+		m_converter = std::make_unique<MeshConverter>(m_topologyMesh);
 		m_simplifier = std::make_unique<MeshSimplifier>(m_topologyMesh, m_topologyMesh);
 
 		m_stats.push_back(std::format("vtx: {}", m_topologyMesh.n_vertices()));
