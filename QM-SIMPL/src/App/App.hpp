@@ -36,17 +36,14 @@ public:
 	auto OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void override;
 	auto OnMouseReleased(uint32_t button, uint32_t x, uint32_t y) -> void override;
 	auto OnMouseMotion(int px, int py) -> void override;
-	auto OnDestroy() -> void override;
 
 private:
-	auto OnImGuiInit() const -> void;
-	auto OnImGuiRender() -> void;
+	auto OnImGuiRender() -> void override;
 
 	auto LoadModel(std::string_view path) -> std::unique_ptr<PolyMesh>;
 	auto LoadModels() -> void;
 
 	auto Reset() -> void;
-	auto ApplyUIScale(float scale) const -> void;
 
 	// paper's algorithm implementations
 	auto GetMu(PolyMesh &mesh) -> float;
@@ -101,16 +98,17 @@ private:
 	std::map<std::string, std::unique_ptr<PolyMesh>, std::less<>> m_models;
 	int m_selectedModelIndex = -1;
 
-	std::pair<OpenMesh::BaseHandle, std::unique_ptr<Renderable3D>> m_hover;
+	OpenMesh::BaseHandle m_hover;
 	bool m_isHovering = false;
 
 	bool m_showFaces = true;
 	bool m_showEdges = true;
 	bool m_showPoints = false;
 	float m_modelScale = 1.0f;
-	float m_uiScale = 2.0f;
 
 	std::vector<std::string> m_stats;
+
+	std::unordered_map<std::string, std::unique_ptr<Renderable3D>> m_DebugRenderables;
 
 	bool m_canRotate = false;
 	bool m_rotating = false;

@@ -7,10 +7,10 @@
 
 typedef OpenMesh::PolyMesh_ArrayKernelT<> PolyMesh;
 
-class Solver3D
+class Solver
 {
 public:
-    Solver3D(PolyMesh &originalMesh, PolyMesh &iteratedMesh)
+    Solver(PolyMesh &originalMesh, PolyMesh &iteratedMesh)
         : m_originalMesh(originalMesh), m_iteratedMesh(iteratedMesh)
     {
     }

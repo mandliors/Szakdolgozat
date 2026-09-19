@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Renderable2D.hpp"
+#include "Renderables/Renderable2D.hpp"
 
 #include <memory>
 

@@ -11,6 +11,7 @@ int main()
 	if (!app.Init())
 		return -1;
 	app.SetTargetFPS(120);
+	app.SetUiScale(2.0f);
 	app.Run();
 	app.Destroy();
 

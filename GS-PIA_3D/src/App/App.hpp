@@ -12,8 +12,8 @@
 #include "MeshRenderer/Shaders/PointShader.hpp"
 #include "ApproximatingMesh/ApproximatingMesh.hpp"
 #include "Framebuffer/Framebuffer.hpp"
-#include "Renderable3D.hpp"
-#include "Solver3D/Solver3D.hpp"
+#include "Renderables/Renderable3D.hpp"
+#include "Solver/Solver.hpp"
 
 #include <vector>
 #include <memory>
@@ -21,21 +21,19 @@
 
 typedef OpenMesh::PolyMesh_ArrayKernelT<> PolyMesh;
 
-class App3D : public BaseApp
+class App : public BaseApp
 {
 public:
-	App3D(uint32_t width, uint32_t height, std::string_view title);
+	App(uint32_t width, uint32_t height, std::string_view title);
 
 	auto OnInit() -> void override;
 	auto OnRender() -> void override;
 	auto OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void override;
 	auto OnMouseReleased(uint32_t button, uint32_t x, uint32_t y) -> void override;
 	auto OnMouseMotion(int px, int py) -> void override;
-	auto OnDestroy() -> void override;
 
 private:
-	auto OnImGuiInit() const -> void;
-	auto OnImGuiRender() -> void;
+	auto OnImGuiRender() -> void override;
 
 	auto LoadModel(std::string_view path) -> std::unique_ptr<PolyMesh>;
 	auto LoadModels() -> void;
@@ -66,7 +64,7 @@ private:
 	std::unique_ptr<ApproximatingMesh> m_iteratedMesh;
 	std::unique_ptr<Renderable3D> m_limitPt;
 
-	std::unique_ptr<Solver3D> m_solver;
+	std::unique_ptr<Solver> m_solver;
 
 	std::string m_modelsPath{"assets/models"};
 	std::unordered_map<std::string, std::unique_ptr<PolyMesh>> m_models;

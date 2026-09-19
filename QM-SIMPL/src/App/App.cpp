@@ -101,20 +101,7 @@ auto App::OnInit() -> void
 	m_quat = glm::normalize(delta * m_quat);
 	/*DEBUG END*/
 
-	// ImGui
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO &io = ImGui::GetIO();
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
-	ImGui_ImplGlfw_InitForOpenGL(m_window, true);
-	ImGui_ImplOpenGL3_Init();
-
 	m_framebuffer = std::make_unique<Framebuffer>(m_width, m_height, 1, false);
-
-	OnImGuiInit();
 }
 auto App::OnUpdate() -> void
 {
@@ -146,16 +133,19 @@ auto App::OnRender() -> void
 	if (m_renderMesh)
 		m_renderMesh->Draw(m_renderState);
 
-	if (m_isHovering)
-	{
-		glDisable(GL_DEPTH_TEST);
-		m_hover.second->Draw(m_renderState);
-		glEnable(GL_DEPTH_TEST);
-	}
+	glDisable(GL_DEPTH_TEST);
+	for (auto &[name, renderable] : m_DebugRenderables)
+		renderable->Draw(m_renderState);
+	glEnable(GL_DEPTH_TEST);
+
+	// if (m_isHovering)
+	// {
+	// 	glDisable(GL_DEPTH_TEST);
+	// 	m_hover.second->Draw(m_renderState);
+	// 	glEnable(GL_DEPTH_TEST);
+	// }
 
 	m_framebuffer->Unbind();
-
-	OnImGuiRender();
 }
 auto App::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
 {
@@ -165,20 +155,21 @@ auto App::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
 	if (button == GLFW_MOUSE_BUTTON_LEFT && m_isHovering)
 	{
 		if (op == OpType::Project)
-			m_simplifier->ProjectVertex(HandleCast<OpenMesh::VertexHandle>(m_hover.first));
+			m_simplifier->ProjectVertex(HandleCast<OpenMesh::VertexHandle>(m_hover));
 		else if (op == OpType::EdgeRotate)
-			EdgeRotate(m_topologyMesh, HandleCast<OpenMesh::EdgeHandle>(m_hover.first));
+			EdgeRotate(m_topologyMesh, HandleCast<OpenMesh::EdgeHandle>(m_hover));
 		else if (op == OpType::VertexRotate)
-			VertexRotate(m_topologyMesh, HandleCast<OpenMesh::VertexHandle>(m_hover.first));
+			VertexRotate(m_topologyMesh, HandleCast<OpenMesh::VertexHandle>(m_hover));
 		else if (op == OpType::DiagonalCollapse)
-			DiagonalCollapse(m_topologyMesh, HandleCast<OpenMesh::HalfedgeHandle>(m_hover.first));
+			DiagonalCollapse(m_topologyMesh, HandleCast<OpenMesh::HalfedgeHandle>(m_hover));
 		else if (op == OpType::EdgeCollapse)
 			EdgeCollapse(m_topologyMesh, m_topologyMesh.halfedge_handle(
-											 HandleCast<OpenMesh::EdgeHandle>(m_hover.first), 0));
+											 HandleCast<OpenMesh::EdgeHandle>(m_hover), 0));
 
 		FinalizeOperation(m_topologyMesh);
 
 		m_renderMesh->UpdateGPU();
+		m_DebugRenderables["hover"]->Vtx().clear();
 		m_isHovering = false;
 	}
 	else if (button == GLFW_MOUSE_BUTTON_RIGHT)
@@ -222,7 +213,7 @@ auto App::OnMouseMotion(int px, int py) -> void
 			{
 				if (bestEdge != lastBestEdge || !m_isHovering)
 				{
-					m_hover.second->Vtx().clear();
+					m_DebugRenderables["hover"]->Vtx().clear();
 					HoverEdge(m_topologyMesh, bestEdge);
 					lastBestEdge = bestEdge;
 					m_isHovering = true;
@@ -230,6 +221,7 @@ auto App::OnMouseMotion(int px, int py) -> void
 			}
 			else
 			{
+				m_DebugRenderables["hover"]->Vtx().clear();
 				m_isHovering = false;
 				lastBestEdge = OpenMesh::EdgeHandle{-1};
 			}
@@ -250,7 +242,7 @@ auto App::OnMouseMotion(int px, int py) -> void
 			{
 				if (bestVertex != lastBestVertex || !m_isHovering)
 				{
-					m_hover.second->Vtx().clear();
+					m_DebugRenderables["hover"]->Vtx().clear();
 					HoverVertex(m_topologyMesh, bestVertex);
 					lastBestVertex = bestVertex;
 					m_isHovering = true;
@@ -258,6 +250,7 @@ auto App::OnMouseMotion(int px, int py) -> void
 			}
 			else
 			{
+				m_DebugRenderables["hover"]->Vtx().clear();
 				m_isHovering = false;
 				lastBestVertex = OpenMesh::VertexHandle{-1};
 			}
@@ -297,7 +290,7 @@ auto App::OnMouseMotion(int px, int py) -> void
 
 				if (bestDiagonalHE != lastBestDiagonalHE || !m_isHovering)
 				{
-					m_hover.second->Vtx().clear();
+					m_DebugRenderables["hover"]->Vtx().clear();
 					HoverDiagonal(m_topologyMesh, bestDiagonalHE);
 					lastBestDiagonalHE = bestDiagonalHE;
 					m_isHovering = true;
@@ -330,22 +323,7 @@ auto App::OnMouseMotion(int px, int py) -> void
 		m_prevArcball = currArcball;
 	}
 }
-auto App::OnDestroy() -> void
-{
-	ImGui_ImplOpenGL3_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
-}
 
-auto App::OnImGuiInit() const -> void
-{
-	ImGuiIO &io = ImGui::GetIO();
-
-	io.ConfigDpiScaleFonts = false;
-	io.ConfigDpiScaleViewports = false;
-
-	ApplyUIScale(m_uiScale);
-}
 auto App::OnImGuiRender() -> void
 {
 	ImGui_ImplOpenGL3_NewFrame();
@@ -463,8 +441,9 @@ auto App::OnImGuiRender() -> void
 	static std::vector<const char *> items{"Project", "Edge Rotate", "Vertex Rotate", "Diagonal Collapse", "Edge Collapse"};
 	ImGui::Combo("Operation", (int *)&op, items.data(), (int)items.size());
 
-	if (ImGui::SliderFloat("UI Scale", &m_uiScale, 0.5f, 4.0f))
-		ApplyUIScale(m_uiScale);
+	static float uiScale = 2.0f;
+	if (ImGui::SliderFloat("UI Scale", &uiScale, 0.5f, 4.0f))
+		SetUiScale(uiScale);
 
 	if (ImGui::Button("Reset"))
 		Reset();
@@ -548,7 +527,10 @@ auto App::Reset() -> void
 	m_iterations = 0;
 	m_quat = glm::quat{1.0f, 0.0f, 0.0f, 0.0f};
 	m_stats.clear();
-	m_hover = std::make_pair<OpenMesh::BaseHandle, std::unique_ptr<Renderable3D>>(OpenMesh::BaseHandle{-1}, std::make_unique<Renderable3D>(*m_edgeShader, GL_LINES, s_selectionColor));
+
+	m_hover = OpenMesh::BaseHandle{-1};
+	m_DebugRenderables.clear();
+	m_DebugRenderables["hover"] = std::move(std::make_unique<Renderable3D>(*m_edgeShader, GL_LINES, s_selectionColor));
 
 	if (m_renderMesh)
 	{
@@ -560,17 +542,6 @@ auto App::Reset() -> void
 		m_stats.push_back(std::format("mu: {}", GetMu(m_topologyMesh)));
 		m_stats.push_back(std::format("var: {}", GetLengthVariance(m_topologyMesh)));
 	}
-}
-auto App::ApplyUIScale(float scale) const -> void
-{
-	ImGuiStyle &style = ImGui::GetStyle();
-	style.FontScaleDpi = scale;
-
-	static ImGuiStyle baseStyle = style;
-	ImGuiStyle scaledStyle = baseStyle;
-	scaledStyle.FontScaleDpi = scale;
-	scaledStyle.ScaleAllSizes(scale);
-	style = scaledStyle;
 }
 
 auto App::GetMu(PolyMesh &mesh) -> float
@@ -790,9 +761,9 @@ auto App::FinalizeOperation(PolyMesh &mesh) const -> void
 
 auto App::HoverEdge(PolyMesh &mesh, OpenMesh::EdgeHandle eh) -> void
 {
-	m_hover.first = eh;
+	m_hover = eh;
 
-	const auto &renderable = m_hover.second;
+	const auto &renderable = m_DebugRenderables["hover"];
 
 	auto heh = mesh.halfedge_handle(eh, 0);
 	auto p0 = mesh.point(mesh.from_vertex_handle(heh));
@@ -807,13 +778,13 @@ auto App::HoverVertex(PolyMesh &mesh, OpenMesh::VertexHandle vh) -> void
 	for (auto ve_iter = mesh.ve_begin(vh); ve_iter != mesh.ve_end(vh); ++ve_iter)
 		HoverEdge(mesh, *ve_iter);
 
-	m_hover.first = vh;
+	m_hover = vh;
 }
 auto App::HoverDiagonal(PolyMesh &mesh, OpenMesh::HalfedgeHandle heh) -> void
 {
-	m_hover.first = heh;
+	m_hover = heh;
 
-	const auto &renderable = m_hover.second;
+	const auto &renderable = m_DebugRenderables["hover"];
 
 	auto p0 = mesh.point(mesh.from_vertex_handle(heh));
 	auto p1 = mesh.point(mesh.to_vertex_handle(mesh.next_halfedge_handle(heh)));

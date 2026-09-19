@@ -1,6 +1,6 @@
-#include "Solver2D.hpp"
+#include "Solver.hpp"
 
-auto Solver2D::GetLimitPoint(const std::vector<glm::vec2>& iterCps, int32_t idx, bool closed) -> std::optional<glm::vec2>
+auto Solver::GetLimitPoint(const std::vector<glm::vec2> &iterCps, int32_t idx, bool closed) -> std::optional<glm::vec2>
 {
     const auto &P = iterCps;
     const auto n = P.size();
@@ -62,7 +62,7 @@ auto Solver2D::GetLimitPoint(const std::vector<glm::vec2>& iterCps, int32_t idx,
         }
     }
 }
-auto Solver2D::StepVertex(const std::vector<glm::vec2>& origCps, std::vector<glm::vec2>& iterCps, int32_t idx, bool closed) -> void
+auto Solver::StepVertex(const std::vector<glm::vec2> &origCps, std::vector<glm::vec2> &iterCps, int32_t idx, bool closed) -> void
 {
     if (origCps.empty())
         return;
@@ -73,13 +73,13 @@ auto Solver2D::StepVertex(const std::vector<glm::vec2>& origCps, std::vector<glm
 
     iterCps[idx] += (1.0f / alpha) * (v - l);
 }
-auto Solver2D::Iterate(const std::vector<glm::vec2>& origCps, std::vector<glm::vec2>& iterCps, int32_t idx, bool closed) -> void
+auto Solver::Iterate(const std::vector<glm::vec2> &origCps, std::vector<glm::vec2> &iterCps, int32_t idx, bool closed) -> void
 {
     for (size_t i = idx; i < origCps.size(); i++)
         StepVertex(origCps, iterCps, i, closed);
 }
 
-auto Solver2D::GetAlpha(int32_t idx, int32_t nVertices, bool closed) -> float
+auto Solver::GetAlpha(int32_t idx, int32_t nVertices, bool closed) -> float
 {
     const auto m = idx;
     const auto n = nVertices;

@@ -1,4 +1,5 @@
 #include "ApproximatingCurve.hpp"
+#include "Rendering/RenderState.hpp"
 
 int32_t ApproximatingCurve::s_curveResolution = 7;
 
@@ -15,19 +16,21 @@ auto ApproximatingCurve::UpdateGPU() -> void
 }
 auto ApproximatingCurve::Draw() const -> void
 {
+    static const auto state = RenderState{};
+
     if (m_drawOriginalCurve)
     {
         m_cps->SetType(m_closed ? GL_LINE_LOOP : GL_LINE_STRIP);
-        m_cps->Draw();
+        m_cps->Draw(state);
         m_cps->SetType(GL_POINTS);
     }
-    
+
     glDisable(GL_DEPTH_TEST);
     glPointSize(20.0f);
-    m_cps->Draw();
+    m_cps->Draw(state);
     glEnable(GL_DEPTH_TEST);
 
-    m_crv->Draw();
+    m_crv->Draw(state);
 }
 auto ApproximatingCurve::Reset() -> void
 {

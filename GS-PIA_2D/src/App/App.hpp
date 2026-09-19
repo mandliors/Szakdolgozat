@@ -6,9 +6,9 @@
 #include "Camera/Camera.hpp"
 #include "Shader/Shader.hpp"
 #include "Framebuffer/Framebuffer.hpp"
-#include "Renderable2D.hpp"
+#include "Renderables/Renderable2D.hpp"
 #include "ApproximatingCurve/ApproximatingCurve.hpp"
-#include "Solver2D/Solver2D.hpp"
+#include "Solver/Solver.hpp"
 
 #include <vector>
 #include <memory>
@@ -16,22 +16,20 @@
 
 namespace fs = std::filesystem;
 
-class App2D : public BaseApp
+class App : public BaseApp
 {
 public:
-	App2D(uint32_t width, uint32_t height, std::string_view title);
+	App(uint32_t width, uint32_t height, std::string_view title);
 
 	auto OnInit() -> void override;
 	auto OnRender() -> void override;
-	auto OnDestroy() -> void override;
 
 	auto OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void override;
 	auto OnMouseReleased(uint32_t button, uint32_t x, uint32_t y) -> void override;
 	auto OnMouseMotion(int x, int y) -> void override;
 
 private:
-	auto OnImGuiInit() const -> void;
-	auto OnImGuiRender() -> void;
+	auto OnImGuiRender() -> void override;
 
 	auto Reset() -> void;
 

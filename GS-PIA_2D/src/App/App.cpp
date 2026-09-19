@@ -7,7 +7,7 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
 
-#include "App2D.hpp"
+#include "App.hpp"
 #include "Rendering/RenderState.hpp"
 
 #include <array>
@@ -15,12 +15,12 @@
 
 namespace fs = std::filesystem;
 
-App2D::App2D(uint32_t width, uint32_t height, std::string_view title)
+App::App(uint32_t width, uint32_t height, std::string_view title)
 	: BaseApp(width, height, title)
 {
 }
 
-auto App2D::OnInit() -> void
+auto App::OnInit() -> void
 {
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
@@ -53,22 +53,9 @@ auto App2D::OnInit() -> void
 
 	Reset();
 
-	// ImGui
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO &io = ImGui::GetIO();
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
-	ImGui_ImplGlfw_InitForOpenGL(m_window, true);
-	ImGui_ImplOpenGL3_Init();
-
 	m_framebuffer = std::make_unique<Framebuffer>(m_width, m_height, 1, false);
-
-	OnImGuiInit();
 }
-auto App2D::OnRender() -> void
+auto App::OnRender() -> void
 {
 	m_framebuffer->Bind();
 
@@ -82,25 +69,17 @@ auto App2D::OnRender() -> void
 	m_iteratedCurve->Draw();
 	m_originalCurve->UpdateGPU();
 	m_originalCurve->Draw();
-	
+
 	glDisable(GL_DEPTH_TEST);
 	glPointSize(10.0f);
 	m_limitPt->UpdateGPU();
-	m_limitPt->Draw();
+	m_limitPt->Draw(RenderState{});
 	glEnable(GL_DEPTH_TEST);
 
 	m_framebuffer->Unbind();
-
-	OnImGuiRender();
-}
-auto App2D::OnDestroy() -> void
-{
-	ImGui_ImplOpenGL3_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
 }
 
-auto App2D::OnMouseMotion(int x, int y) -> void
+auto App::OnMouseMotion(int x, int y) -> void
 {
 	if (m_draggedVertex)
 	{
@@ -108,7 +87,7 @@ auto App2D::OnMouseMotion(int x, int y) -> void
 		Reset();
 	}
 }
-auto App2D::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
+auto App::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
 {
 	if (button == GLFW_MOUSE_BUTTON_LEFT)
 	{
@@ -131,31 +110,12 @@ auto App2D::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
 		Reset();
 	}
 }
-auto App2D::OnMouseReleased(uint32_t button, uint32_t x, uint32_t y) -> void
+auto App::OnMouseReleased(uint32_t button, uint32_t x, uint32_t y) -> void
 {
 	m_draggedVertex = nullptr;
 }
 
-auto App2D::OnImGuiInit() const -> void
-{
-	float scale;
-	glfwGetWindowContentScale(m_window, &scale, NULL);
-
-	ImGuiIO &io = ImGui::GetIO();
-	io.Fonts->Clear();
-
-	ImFontConfig cfg;
-	cfg.SizePixels = 13.0f * scale;
-
-	io.Fonts->AddFontDefault(&cfg);
-
-	ImGui::GetStyle().ScaleAllSizes(scale);
-	io.FontGlobalScale = 1.0f;
-
-	ImGuiStyle &style = ImGui::GetStyle();
-	style.ScaleAllSizes(scale);
-}
-auto App2D::OnImGuiRender() -> void
+auto App::OnImGuiRender() -> void
 {
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
@@ -245,12 +205,12 @@ auto App2D::OnImGuiRender() -> void
 
 		if (ImGui::Button("Step"))
 		{
-			Solver2D::StepVertex(m_originalCurve->Cps(), m_iteratedCurve->Cps(), m_steps, m_closed);
+			Solver::StepVertex(m_originalCurve->Cps(), m_iteratedCurve->Cps(), m_steps, m_closed);
 			m_steps = (m_steps + 1) % m_originalCurve->Cps().size();
 			if (m_steps == 0)
-    		    m_iterations++;
+				m_iterations++;
 
-			if (auto limitPt = Solver2D::GetLimitPoint(m_iteratedCurve->Cps(), m_steps, m_closed))
+			if (auto limitPt = Solver::GetLimitPoint(m_iteratedCurve->Cps(), m_steps, m_closed))
 				m_limitPt->Vtx()[0] = *limitPt;
 			else
 				m_limitPt->Vtx().clear();
@@ -262,11 +222,11 @@ auto App2D::OnImGuiRender() -> void
 
 		if (ImGui::Button("Iterate"))
 		{
-			Solver2D::Iterate(m_originalCurve->Cps(), m_iteratedCurve->Cps(), m_steps, m_closed);
+			Solver::Iterate(m_originalCurve->Cps(), m_iteratedCurve->Cps(), m_steps, m_closed);
 			m_steps = 0;
 			m_iterations++;
 
-			if (auto limitPt = Solver2D::GetLimitPoint(m_iteratedCurve->Cps(), m_steps, m_closed))
+			if (auto limitPt = Solver::GetLimitPoint(m_iteratedCurve->Cps(), m_steps, m_closed))
 				m_limitPt->Vtx()[0] = *limitPt;
 			else
 				m_limitPt->Vtx().clear();
@@ -288,7 +248,7 @@ auto App2D::OnImGuiRender() -> void
 	ImGui::Begin("Info");
 	{
 		ImGui::Text("Iterations: %d", m_iterations);
-		ImGui::Text("Steps: %d/%d", m_steps, m_iteratedCurve->Cps().size());
+		ImGui::Text("Steps: %d/%d", m_steps, (int)m_iteratedCurve->Cps().size());
 
 		ImGui::Separator();
 
@@ -316,22 +276,22 @@ auto App2D::OnImGuiRender() -> void
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-auto App2D::Reset() -> void
+auto App::Reset() -> void
 {
 	m_iteratedCurve->Cps() = m_originalCurve->Cps();
 	m_steps = 0;
 	m_iterations = 0;
-	
+
 	m_originalCurve->Reset();
 	m_iteratedCurve->Reset();
 
-	if (auto limitPt = Solver2D::GetLimitPoint(m_iteratedCurve->Cps(), m_steps, m_closed))
+	if (auto limitPt = Solver::GetLimitPoint(m_iteratedCurve->Cps(), m_steps, m_closed))
 		m_limitPt->Vtx() = {*limitPt};
 	else
 		m_limitPt->Vtx().clear();
 }
 
-auto App2D::ScreenToNDC(int x, int y) -> glm::vec2
+auto App::ScreenToNDC(int x, int y) -> glm::vec2
 {
 	auto win = ImGui::FindWindowByName("Viewport");
 	if (!win)

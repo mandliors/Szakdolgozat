@@ -1,4 +1,4 @@
-#include "App2D/App2D.hpp"
+#include "App/App.hpp"
 
 int main()
 {
@@ -6,11 +6,12 @@ int main()
 	constexpr auto screenWidth = static_cast<int>(2000 * scale);
 	constexpr auto screenHeight = static_cast<int>(1400 * scale);
 
-	App2D app{screenWidth, screenHeight, "GS-PIA 2D"};
+	App app{screenWidth, screenHeight, "GS-PIA 2D"};
 
 	if (!app.Init())
 		return -1;
 	app.SetTargetFPS(120);
+	app.SetUiScale(2.0f);
 	app.Run();
 	app.Destroy();
 

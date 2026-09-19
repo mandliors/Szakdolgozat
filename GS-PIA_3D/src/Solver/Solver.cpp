@@ -1,11 +1,11 @@
-#include "Solver3D.hpp"
+#include "Solver.hpp"
 
-auto Solver3D::Reset() -> void
+auto Solver::Reset() -> void
 {
     m_steps = 0;
     m_iterations = 0;
 }
-auto Solver3D::GetAlpha() const -> float
+auto Solver::GetAlpha() const -> float
 {
     const auto &mesh = m_iteratedMesh;
     auto vh = mesh.vertex_handle(m_steps);
@@ -17,7 +17,7 @@ auto Solver3D::GetAlpha() const -> float
         return n * n / static_cast<float>(n * (n + 5));
 }
 
-auto Solver3D::GetLimitPoint() const -> std::optional<glm::vec3>
+auto Solver::GetLimitPoint() const -> std::optional<glm::vec3>
 {
     const auto &mesh = m_iteratedMesh;
     auto vh = mesh.vertex_handle(m_steps);
@@ -73,7 +73,7 @@ auto Solver3D::GetLimitPoint() const -> std::optional<glm::vec3>
 
     return {{limitPt[0], limitPt[1], limitPt[2]}};
 }
-auto Solver3D::StepVertex() -> void
+auto Solver::StepVertex() -> void
 {
     const auto alpha = GetAlpha();
 
@@ -94,7 +94,7 @@ auto Solver3D::StepVertex() -> void
     if (m_steps == 0)
         m_iterations++;
 }
-auto Solver3D::Iterate() -> void
+auto Solver::Iterate() -> void
 {
     for (size_t i = m_steps; i < m_originalMesh.n_vertices(); i++)
         StepVertex();

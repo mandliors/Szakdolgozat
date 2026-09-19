@@ -25,6 +25,7 @@ auto MeshConverter::TopologyMesh() -> PolyMesh & { return m_mesh; }
 auto MeshConverter::Execute() -> void
 {
     DissolveEdges();
+
     // MergeRemainingTriangles();
 }
 
@@ -130,16 +131,21 @@ auto MeshConverter::FlagEdges() -> void
             auto eh2 = m_mesh.edge_handle(heh2);
             auto eh3 = m_mesh.edge_handle(heh3);
 
-            if (m_mesh.property(m_squareness, eh0) > m_mesh.property(m_squareness, eh))
+            if (m_mesh.property(m_selected, eh0) && m_mesh.property(m_squareness, eh0) > m_mesh.property(m_squareness, eh))
                 continue;
-            if (m_mesh.property(m_squareness, eh1) > m_mesh.property(m_squareness, eh))
+            if (m_mesh.property(m_selected, eh1) && m_mesh.property(m_squareness, eh1) > m_mesh.property(m_squareness, eh))
                 continue;
-            if (m_mesh.property(m_squareness, eh2) > m_mesh.property(m_squareness, eh))
+            if (m_mesh.property(m_selected, eh2) && m_mesh.property(m_squareness, eh2) > m_mesh.property(m_squareness, eh))
                 continue;
-            if (m_mesh.property(m_squareness, eh3) > m_mesh.property(m_squareness, eh))
+            if (m_mesh.property(m_selected, eh3) && m_mesh.property(m_squareness, eh3) > m_mesh.property(m_squareness, eh))
                 continue;
 
             m_mesh.property(m_flagged, eh) = true;
+
+            m_mesh.property(m_selected, eh0) = false;
+            m_mesh.property(m_selected, eh1) = false;
+            m_mesh.property(m_selected, eh2) = false;
+            m_mesh.property(m_selected, eh3) = false;
         }
     }
 }

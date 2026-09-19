@@ -5,7 +5,7 @@ add_executable(${APP}
 )
 
 file(GLOB_RECURSE
-    APP_SOURCES 
+    APP_SOURCES CONFIGURE_DEPENDS
         "src/*.cpp" 
         "src/*.hpp"
 )
