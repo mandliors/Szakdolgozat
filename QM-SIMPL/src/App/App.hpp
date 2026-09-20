@@ -15,7 +15,7 @@
 #include "Framebuffer/Framebuffer.hpp"
 #include "MeshConverter/MeshConverter.hpp"
 #include "MeshSimplifier/MeshSimplifier.hpp"
-#include "Renderable3D.hpp"
+#include "Renderables/Renderable3D.hpp"
 
 #include <vector>
 #include <memory>
@@ -104,11 +104,10 @@ private:
 	bool m_showFaces = true;
 	bool m_showEdges = true;
 	bool m_showPoints = false;
+	bool m_renderDebug = true;
 	float m_modelScale = 1.0f;
 
 	std::vector<std::string> m_stats;
-
-	std::unordered_map<std::string, std::unique_ptr<Renderable3D>> m_DebugRenderables;
 
 	bool m_canRotate = false;
 	bool m_rotating = false;

@@ -1,4 +1,8 @@
 #include "MeshConverter.hpp"
+
+#include "DebugRenderer/DebugRenderer.hpp"
+#include "Renderables/Renderable3D.hpp"
+
 #include <iostream>
 #include <ranges>
 
@@ -6,18 +10,36 @@ MeshConverter::MeshConverter(PolyMesh &mesh) : m_mesh(mesh)
 {
     m_mesh.add_property(m_squareness);
     m_mesh.add_property(m_selected);
+    m_mesh.add_property(m_flaggable);
     m_mesh.add_property(m_flagged);
 
     for (auto eh : m_mesh.edges())
     {
         m_mesh.property(m_squareness, eh) = 0;
         m_mesh.property(m_selected, eh) = false;
+        m_mesh.property(m_flaggable, eh) = true;
         m_mesh.property(m_flagged, eh) = false;
     }
 
     SetEdgeSquarenessValues();
     SelectEdges();
     FlagEdges();
+
+    // auto edges = DebugRenderer::GetAs<Renderable3D>("edges");
+    // edges->Vtx().clear();
+    // size_t count = 0;
+    // for (const auto eh : m_mesh.edges())
+    // {
+    //     if (m_mesh.property(m_flagged, eh))
+    //     {
+    //         auto heh = m_mesh.halfedge_handle(eh, 0);
+    //         const auto &p0 = m_mesh.point(m_mesh.from_vertex_handle(heh));
+    //         const auto &p1 = m_mesh.point(m_mesh.to_vertex_handle(heh));
+    //         edges->Vtx().emplace_back(p0[0], p0[1], p0[2]);
+    //         edges->Vtx().emplace_back(p1[0], p1[1], p1[2]);
+    //     }
+    // }
+    // edges->UpdateGPU();
 }
 
 auto MeshConverter::TopologyMesh() -> PolyMesh & { return m_mesh; }
@@ -25,15 +47,18 @@ auto MeshConverter::TopologyMesh() -> PolyMesh & { return m_mesh; }
 auto MeshConverter::Execute() -> void
 {
     DissolveEdges();
-
     // MergeRemainingTriangles();
 }
 
 auto MeshConverter::DissolveEdges() -> void
 {
+    std::vector<OpenMesh::EdgeHandle> flagged;
     for (auto eh : m_mesh.edges())
         if (m_mesh.property(m_flagged, eh))
-            DissolveEdge(eh);
+            flagged.push_back(eh);
+
+    for (auto eh : flagged)
+        DissolveEdge(eh);
 }
 auto MeshConverter::MergeRemainingTriangles() -> void
 {
@@ -76,9 +101,7 @@ auto MeshConverter::DissolveEdge(OpenMesh::EdgeHandle eh) -> OpenMesh::FaceHandl
     }
 
     m_mesh.delete_edge(eh, false);
-    auto nfh = m_mesh.add_face(vertices);
-
-    return nfh;
+    return m_mesh.add_face(vertices);
 }
 auto MeshConverter::SetEdgeSquarenessValues() -> void
 {
@@ -88,36 +111,67 @@ auto MeshConverter::SetEdgeSquarenessValues() -> void
 auto MeshConverter::SelectEdges() -> void
 {
     for (auto fh : m_mesh.faces())
+        SelectBestEdge(fh);
+}
+auto MeshConverter::SelectBestEdge(OpenMesh::FaceHandle fh) -> OpenMesh::EdgeHandle
+{
+    auto heh0 = m_mesh.halfedge_handle(fh);
+    auto heh1 = m_mesh.next_halfedge_handle(heh0);
+    auto heh2 = m_mesh.next_halfedge_handle(heh1);
+
+    auto eh0 = m_mesh.edge_handle(heh0);
+    auto eh1 = m_mesh.edge_handle(heh1);
+    auto eh2 = m_mesh.edge_handle(heh2);
+
+    auto s0 = m_mesh.property(m_squareness, eh0);
+    auto s1 = m_mesh.property(m_squareness, eh1);
+    auto s2 = m_mesh.property(m_squareness, eh2);
+
+    auto f0 = m_mesh.property(m_flaggable, eh0);
+    auto f1 = m_mesh.property(m_flaggable, eh1);
+    auto f2 = m_mesh.property(m_flaggable, eh2);
+
+    m_mesh.property(m_selected, eh0) = false;
+    m_mesh.property(m_selected, eh1) = false;
+    m_mesh.property(m_selected, eh2) = false;
+
+    if (s0 < 0 && s1 < 0 && s2 < 0)
+        return OpenMesh::EdgeHandle{-1};
+
+    if (!f0 && !f1 && !f2)
+        return OpenMesh::EdgeHandle{-1};
+
+    if (f0 && s0 >= s1 && s0 >= s2)
     {
-        auto heh0 = m_mesh.halfedge_handle(fh);
-        auto heh1 = m_mesh.next_halfedge_handle(heh0);
-        auto heh2 = m_mesh.next_halfedge_handle(heh1);
-
-        auto eh0 = m_mesh.edge_handle(heh0);
-        auto eh1 = m_mesh.edge_handle(heh1);
-        auto eh2 = m_mesh.edge_handle(heh2);
-
-        auto s0 = m_mesh.property(m_squareness, eh0);
-        auto s1 = m_mesh.property(m_squareness, eh1);
-        auto s2 = m_mesh.property(m_squareness, eh2);
-
-        if (s0 < 0 && s1 < 0 && s2 < 0)
-            continue;
-
-        if (s0 >= s1 && s0 >= s2)
-            m_mesh.property(m_selected, eh0) = true;
-        else if (s1 >= s0 && s1 >= s2)
-            m_mesh.property(m_selected, eh1) = true;
-        else
-            m_mesh.property(m_selected, eh2) = true;
+        m_mesh.property(m_selected, eh0) = true;
+        return eh0;
+    }
+    else if (f1 && s1 >= s0 && s1 >= s2)
+    {
+        m_mesh.property(m_selected, eh1) = true;
+        return eh1;
+    }
+    else
+    {
+        m_mesh.property(m_selected, eh2) = true;
+        return eh2;
     }
 }
 auto MeshConverter::FlagEdges() -> void
 {
+    std::vector<OpenMesh::EdgeHandle> flaggableSelected;
     for (auto eh : m_mesh.edges())
+        if (m_mesh.property(m_selected, eh) && m_mesh.property(m_flaggable, eh))
+            flaggableSelected.push_back(eh);
+
+    while (!flaggableSelected.empty())
     {
-        if (m_mesh.property(m_selected, eh))
+        auto newSelections = std::vector<OpenMesh::EdgeHandle>{};
+        for (auto eh : flaggableSelected)
         {
+            if (!m_mesh.property(m_flaggable, eh) || !m_mesh.property(m_selected, eh))
+                continue;
+
             auto hehA = m_mesh.halfedge_handle(eh, 0);
             auto hehB = m_mesh.halfedge_handle(eh, 1);
 
@@ -131,22 +185,35 @@ auto MeshConverter::FlagEdges() -> void
             auto eh2 = m_mesh.edge_handle(heh2);
             auto eh3 = m_mesh.edge_handle(heh3);
 
-            if (m_mesh.property(m_selected, eh0) && m_mesh.property(m_squareness, eh0) > m_mesh.property(m_squareness, eh))
+            if (m_mesh.property(m_selected, eh0) && m_mesh.property(m_flaggable, eh0) && m_mesh.property(m_squareness, eh0) > m_mesh.property(m_squareness, eh))
                 continue;
-            if (m_mesh.property(m_selected, eh1) && m_mesh.property(m_squareness, eh1) > m_mesh.property(m_squareness, eh))
+            if (m_mesh.property(m_selected, eh1) && m_mesh.property(m_flaggable, eh1) && m_mesh.property(m_squareness, eh1) > m_mesh.property(m_squareness, eh))
                 continue;
-            if (m_mesh.property(m_selected, eh2) && m_mesh.property(m_squareness, eh2) > m_mesh.property(m_squareness, eh))
+            if (m_mesh.property(m_selected, eh2) && m_mesh.property(m_flaggable, eh2) && m_mesh.property(m_squareness, eh2) > m_mesh.property(m_squareness, eh))
                 continue;
-            if (m_mesh.property(m_selected, eh3) && m_mesh.property(m_squareness, eh3) > m_mesh.property(m_squareness, eh))
+            if (m_mesh.property(m_selected, eh3) && m_mesh.property(m_flaggable, eh3) && m_mesh.property(m_squareness, eh3) > m_mesh.property(m_squareness, eh))
                 continue;
 
             m_mesh.property(m_flagged, eh) = true;
 
-            m_mesh.property(m_selected, eh0) = false;
-            m_mesh.property(m_selected, eh1) = false;
-            m_mesh.property(m_selected, eh2) = false;
-            m_mesh.property(m_selected, eh3) = false;
+            m_mesh.property(m_flaggable, eh) = false;
+            m_mesh.property(m_flaggable, eh0) = false;
+            m_mesh.property(m_flaggable, eh1) = false;
+            m_mesh.property(m_flaggable, eh2) = false;
+            m_mesh.property(m_flaggable, eh3) = false;
+
+            auto f0 = m_mesh.face_handle(m_mesh.opposite_halfedge_handle(heh0));
+            auto f1 = m_mesh.face_handle(m_mesh.opposite_halfedge_handle(heh1));
+            auto f2 = m_mesh.face_handle(m_mesh.opposite_halfedge_handle(heh2));
+            auto f3 = m_mesh.face_handle(m_mesh.opposite_halfedge_handle(heh3));
+
+            for (auto f : {f0, f1, f2, f3})
+                if (f.is_valid())
+                    if (auto eh = SelectBestEdge(f); eh.is_valid())
+                        newSelections.push_back(eh);
         }
+
+        flaggableSelected = std::move(newSelections);
     }
 }
 auto MeshConverter::CalculateEdgeSquareness(OpenMesh::EdgeHandle eh) -> float
@@ -211,17 +278,6 @@ auto MeshConverter::SolveTriangle(OpenMesh::FaceHandle fh) -> void
 
         return OpenMesh::EdgeHandle{-1};
     };
-
-    // neighbors
-    if (path.size() == 2)
-    {
-        auto eh = findMutualEdge(path[0], path[1]);
-        assert(eh.is_valid() && "no mutual edge??");
-
-        DissolveEdge(eh);
-
-        return;
-    }
 
     auto cfh = path.back();
     for (auto [nfh, nnfh] : path | std::views::reverse | std::views::drop(1) | std::views::adjacent<2>)

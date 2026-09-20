@@ -29,6 +29,7 @@ private:
     auto DissolveEdge(OpenMesh::EdgeHandle eh) -> OpenMesh::FaceHandle;
     auto SetEdgeSquarenessValues() -> void;
     auto SelectEdges() -> void;
+    auto SelectBestEdge(OpenMesh::FaceHandle fh) -> OpenMesh::EdgeHandle;
     auto FlagEdges() -> void;
     auto CalculateEdgeSquareness(OpenMesh::EdgeHandle eh) -> float;
     auto CalculateSquarenessImpl(const std::array<OpenMesh::Vec3f, 4> &vtx) -> float;
@@ -42,5 +43,6 @@ private:
 
     OpenMesh::EPropHandleT<float> m_squareness;
     OpenMesh::EPropHandleT<bool> m_selected;
+    OpenMesh::EPropHandleT<bool> m_flaggable;
     OpenMesh::EPropHandleT<bool> m_flagged;
 };

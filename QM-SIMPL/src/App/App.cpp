@@ -9,6 +9,7 @@
 
 #include "App.hpp"
 #include "Rendering/RenderState.hpp"
+#include "DebugRenderer/DebugRenderer.hpp"
 
 #include <array>
 #include <ranges>
@@ -88,6 +89,7 @@ auto App::OnInit() -> void
 
 	m_renderMesh = std::make_unique<MeshRenderer>(m_topologyMesh, *m_faceShader, *m_edgeShader, *m_pointShader, s_initialColor, s_edgeColor, s_initialColor);
 	m_renderMesh->SetDrawMode(true, true, false);
+	DebugRenderer::Add("edges", std::move(std::make_unique<Renderable3D>(*m_edgeShader, GL_LINES, s_selectionColor)));
 	m_converter = std::make_unique<MeshConverter>(m_topologyMesh);
 	m_simplifier = std::make_unique<MeshSimplifier>(
 		*m_models.at("subdiv-cube.obj"),
@@ -133,17 +135,8 @@ auto App::OnRender() -> void
 	if (m_renderMesh)
 		m_renderMesh->Draw(m_renderState);
 
-	glDisable(GL_DEPTH_TEST);
-	for (auto &[name, renderable] : m_DebugRenderables)
-		renderable->Draw(m_renderState);
-	glEnable(GL_DEPTH_TEST);
-
-	// if (m_isHovering)
-	// {
-	// 	glDisable(GL_DEPTH_TEST);
-	// 	m_hover.second->Draw(m_renderState);
-	// 	glEnable(GL_DEPTH_TEST);
-	// }
+	if (m_renderDebug)
+		DebugRenderer::DrawAll(m_renderState);
 
 	m_framebuffer->Unbind();
 }
@@ -169,7 +162,7 @@ auto App::OnMousePressed(uint32_t button, uint32_t x, uint32_t y) -> void
 		FinalizeOperation(m_topologyMesh);
 
 		m_renderMesh->UpdateGPU();
-		m_DebugRenderables["hover"]->Vtx().clear();
+		DebugRenderer::GetAs<Renderable3D>("hover")->Vtx().clear();
 		m_isHovering = false;
 	}
 	else if (button == GLFW_MOUSE_BUTTON_RIGHT)
@@ -213,7 +206,7 @@ auto App::OnMouseMotion(int px, int py) -> void
 			{
 				if (bestEdge != lastBestEdge || !m_isHovering)
 				{
-					m_DebugRenderables["hover"]->Vtx().clear();
+					DebugRenderer::GetAs<Renderable3D>("hover")->Vtx().clear();
 					HoverEdge(m_topologyMesh, bestEdge);
 					lastBestEdge = bestEdge;
 					m_isHovering = true;
@@ -221,7 +214,7 @@ auto App::OnMouseMotion(int px, int py) -> void
 			}
 			else
 			{
-				m_DebugRenderables["hover"]->Vtx().clear();
+				DebugRenderer::GetAs<Renderable3D>("hover")->Vtx().clear();
 				m_isHovering = false;
 				lastBestEdge = OpenMesh::EdgeHandle{-1};
 			}
@@ -242,7 +235,7 @@ auto App::OnMouseMotion(int px, int py) -> void
 			{
 				if (bestVertex != lastBestVertex || !m_isHovering)
 				{
-					m_DebugRenderables["hover"]->Vtx().clear();
+					DebugRenderer::GetAs<Renderable3D>("hover")->Vtx().clear();
 					HoverVertex(m_topologyMesh, bestVertex);
 					lastBestVertex = bestVertex;
 					m_isHovering = true;
@@ -250,7 +243,7 @@ auto App::OnMouseMotion(int px, int py) -> void
 			}
 			else
 			{
-				m_DebugRenderables["hover"]->Vtx().clear();
+				DebugRenderer::GetAs<Renderable3D>("hover")->Vtx().clear();
 				m_isHovering = false;
 				lastBestVertex = OpenMesh::VertexHandle{-1};
 			}
@@ -290,7 +283,7 @@ auto App::OnMouseMotion(int px, int py) -> void
 
 				if (bestDiagonalHE != lastBestDiagonalHE || !m_isHovering)
 				{
-					m_DebugRenderables["hover"]->Vtx().clear();
+					DebugRenderer::GetAs<Renderable3D>("hover")->Vtx().clear();
 					HoverDiagonal(m_topologyMesh, bestDiagonalHE);
 					lastBestDiagonalHE = bestDiagonalHE;
 					m_isHovering = true;
@@ -436,6 +429,8 @@ auto App::OnImGuiRender() -> void
 	if (drawModeChanged && m_renderMesh)
 		m_renderMesh->SetDrawMode(m_showFaces, m_showEdges, m_showPoints);
 
+	ImGui::Checkbox("Debug", &m_renderDebug);
+
 	ImGui::SliderFloat("Scale", &m_modelScale, 0.1f, 16.0f);
 
 	static std::vector<const char *> items{"Project", "Edge Rotate", "Vertex Rotate", "Diagonal Collapse", "Edge Collapse"};
@@ -528,12 +523,15 @@ auto App::Reset() -> void
 	m_quat = glm::quat{1.0f, 0.0f, 0.0f, 0.0f};
 	m_stats.clear();
 
+	DebugRenderer::Clear();
+
 	m_hover = OpenMesh::BaseHandle{-1};
-	m_DebugRenderables.clear();
-	m_DebugRenderables["hover"] = std::move(std::make_unique<Renderable3D>(*m_edgeShader, GL_LINES, s_selectionColor));
+	DebugRenderer::Add("hover", std::make_unique<Renderable3D>(*m_edgeShader, GL_LINES, s_selectionColor));
 
 	if (m_renderMesh)
 	{
+		DebugRenderer::Add("edges", std::move(std::make_unique<Renderable3D>(*m_edgeShader, GL_LINES, s_selectionColor)));
+
 		m_converter = std::make_unique<MeshConverter>(m_topologyMesh);
 		m_simplifier = std::make_unique<MeshSimplifier>(m_topologyMesh, m_topologyMesh);
 
@@ -763,7 +761,7 @@ auto App::HoverEdge(PolyMesh &mesh, OpenMesh::EdgeHandle eh) -> void
 {
 	m_hover = eh;
 
-	const auto &renderable = m_DebugRenderables["hover"];
+	const auto &renderable = DebugRenderer::GetAs<Renderable3D>("hover");
 
 	auto heh = mesh.halfedge_handle(eh, 0);
 	auto p0 = mesh.point(mesh.from_vertex_handle(heh));
@@ -784,7 +782,7 @@ auto App::HoverDiagonal(PolyMesh &mesh, OpenMesh::HalfedgeHandle heh) -> void
 {
 	m_hover = heh;
 
-	const auto &renderable = m_DebugRenderables["hover"];
+	const auto &renderable = DebugRenderer::GetAs<Renderable3D>("hover");
 
 	auto p0 = mesh.point(mesh.from_vertex_handle(heh));
 	auto p1 = mesh.point(mesh.to_vertex_handle(mesh.next_halfedge_handle(heh)));
