@@ -89,7 +89,6 @@ auto App::OnInit() -> void
 
 	m_renderMesh = std::make_unique<MeshRenderer>(m_topologyMesh, *m_faceShader, *m_edgeShader, *m_pointShader, s_initialColor, s_edgeColor, s_initialColor);
 	m_renderMesh->SetDrawMode(true, true, false);
-	DebugRenderer::Add("edges", std::move(std::make_unique<Renderable3D>(*m_edgeShader, GL_LINES, s_selectionColor)));
 	m_converter = std::make_unique<MeshConverter>(m_topologyMesh);
 	m_simplifier = std::make_unique<MeshSimplifier>(
 		*m_models.at("subdiv-cube.obj"),
@@ -410,7 +409,10 @@ auto App::OnImGuiRender() -> void
 			m_converter = std::make_unique<MeshConverter>(m_topologyMesh);
 			m_simplifier = std::make_unique<MeshSimplifier>(m_topologyMesh, m_topologyMesh);
 
-			Reset();
+			FinalizeOperation(m_topologyMesh);
+			m_renderMesh->UpdateGPU();
+
+			// Reset();
 		}
 
 		i++;
@@ -523,15 +525,13 @@ auto App::Reset() -> void
 	m_quat = glm::quat{1.0f, 0.0f, 0.0f, 0.0f};
 	m_stats.clear();
 
-	DebugRenderer::Clear();
-
 	m_hover = OpenMesh::BaseHandle{-1};
 	DebugRenderer::Add("hover", std::make_unique<Renderable3D>(*m_edgeShader, GL_LINES, s_selectionColor));
+	DebugRenderer::Add("edges", std::move(std::make_unique<Renderable3D>(*m_edgeShader, GL_LINES, s_selectionColor)));
+	DebugRenderer::Add("path", std::move(std::make_unique<Renderable3D>(*m_edgeShader, GL_LINES, s_selectionColor)));
 
 	if (m_renderMesh)
 	{
-		DebugRenderer::Add("edges", std::move(std::make_unique<Renderable3D>(*m_edgeShader, GL_LINES, s_selectionColor)));
-
 		m_converter = std::make_unique<MeshConverter>(m_topologyMesh);
 		m_simplifier = std::make_unique<MeshSimplifier>(m_topologyMesh, m_topologyMesh);
 

@@ -143,10 +143,16 @@ auto MeshSimplifier::PrintOperationHeap() const -> void
 
 auto MeshSimplifier::AddVertexOperations(OpenMesh::VertexHandle vh, int32_t timestamp) -> void
 {
+	if (m_mesh.is_boundary(vh))
+		return;
+
 	m_operationHeap.Push(std::make_unique<VertexRotation>(m_mesh, vh, timestamp));
 }
 auto MeshSimplifier::AddEdgeOperations(OpenMesh::EdgeHandle eh, int32_t timestamp) -> void
 {
+	if (m_mesh.is_boundary(eh))
+		return;
+
 	auto heh0 = m_mesh.halfedge_handle(eh, 0);
 	auto heh1 = m_mesh.halfedge_handle(eh, 1);
 

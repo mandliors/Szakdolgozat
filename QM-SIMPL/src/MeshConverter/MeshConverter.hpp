@@ -35,8 +35,9 @@ private:
     auto CalculateSquarenessImpl(const std::array<OpenMesh::Vec3f, 4> &vtx) -> float;
 
     auto SolveTriangle(OpenMesh::FaceHandle fh) -> void;
+    auto AdvanceTriangle(OpenMesh::FaceHandle cfh, OpenMesh::FaceHandle nfh, OpenMesh::FaceHandle nnfh) -> OpenMesh::FaceHandle;
     auto FindPathToNearestTriangle(OpenMesh::FaceHandle fh) -> std::vector<OpenMesh::FaceHandle>;
-    auto CutTriangle(OpenMesh::FaceHandle fh, OpenMesh::VertexHandle vh) -> OpenMesh::FaceHandle;
+    auto CutEar(OpenMesh::FaceHandle fh, OpenMesh::VertexHandle vh) -> OpenMesh::FaceHandle;
 
 private:
     PolyMesh &m_mesh;
